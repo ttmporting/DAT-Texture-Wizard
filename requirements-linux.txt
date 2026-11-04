@@ -1,0 +1,5 @@
+# Python packages for the Linux port. Tkinter itself is supplied by the OS.
+Pillow>=10.0
+psutil>=5.9
+xxhash>=3.4
+tkinterdnd2>=0.4
