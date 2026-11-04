@@ -15,7 +15,7 @@ Working branch: `linux-port`
 - [x] Add GitHub Actions checks for the isolated compatibility layer.
 
 Recorded local validation:
-- 8 compatibility unit tests passed on Python 3.
+- 11 compatibility unit tests passed on Python 3.
 - `dtw_platform.py` passed `py_compile`.
 
 The full application is **not yet a native Linux program**. Do not remove the
@@ -76,3 +76,41 @@ Python 3 readiness.
 DAT, TPL, and disc contents are binary formats. All transformations must
 preserve byte values and offsets exactly. GUI startup is not enough:
 serialization round trips and known-good fixture comparisons are mandatory.
+
+## Verification checkpoint — 2026-11-04
+
+GitHub Actions run [#41887077131](https://github.com/ttmporting/DAT-Texture-Wizard/actions/runs/41887077131)
+completed successfully on the `linux-port` branch.
+
+Verified in CI:
+- 11 unit tests passed for the standalone OS compatibility helpers.
+- `dtw_platform.py` and its test module compile under Python 3.
+- The source audit completed and enumerated remaining Python 2 and Windows-only constructs.
+- All three shell scripts passed `bash -n`.
+- `run-linux.sh` correctly refuses to start unless the explicit
+  `.linux-port-ready` marker exists (expected exit status 2).
+
+This is **foundation verification only**. It does not certify DAT/TPL/ISO
+operations or mean that the full GUI launches.
+
+### Remaining legacy-source audit findings
+
+The latest source audit still reports:
+- 146 Python 2 print statements across the main application, DAT modules,
+  structure module, and TPL codec.
+- 71 `xrange()` calls and 3 `long()` calls.
+- 1 `raw_input()`, 1 `dict.has_key()`, and 7 `basestring` references.
+- 18 legacy Tkinter/configuration imports.
+- 2 `os.startfile()` calls and 4 Windows `creationflags` arguments.
+- 3 hard-coded `.exe` helper references.
+
+### DAT/TPL/ISO fixture availability
+
+The upstream v6.1.4 repository contains no sample `.dat`, `.tpl`, `.iso`,
+or `.gcm` fixtures. Its PNG files are application artwork, not test vectors.
+Therefore, end-to-end tests for loading/rebuilding DAT files, TPL texture
+round-trips, and ISO/GCM rebuilding have **not** been run. Those tests require
+known-good, legally supplied fixtures and expected output hashes.
+
+Do not describe the application as Linux-ready until the Python 3 conversion,
+native helper integration, and those binary-format regression tests are complete.
