@@ -183,11 +183,26 @@ current upstream DTW structure definitions:
   span and matches the 0x0C-byte `MatAnimJointDesc` layout. Its child and
   material-animation pointer fields are present in the relocation table.
 
-The new file and the earlier user-supplied `PlFxGr-TAILS.dat` have different
-sizes and relocation counts, but both expose the same two Fox Green root
-labels. Both binaries remain local to the test workspace; neither is committed.
+The two files are intentionally different test inputs, not files expected
+to match:
+- `PlFxGr.dat` is the original/baseline Fox Green costume DAT extracted from
+  the user's rebuilt GameCube ISO.
+- `PlFxGr-TAILS.dat` is the user's modified/custom Fox Green skin DAT.
+
+Different sizes, relocation counts, texture payloads, and structure contents
+are expected for independently modified DATs. The shared Fox Green root labels
+identify their logical costume role; they do not imply byte-for-byte or
+structural identity. Both binaries remain local to the test workspace; neither
+is committed.
+
+The intended regression workflow is to open and interpret each DAT independently,
+enumerate and decode its textures, perform a controlled texture replacement,
+rebuild the DAT, reopen the rebuilt output, and verify that unrelated binary
+content and pointer relationships remain valid. The original fixture provides
+a baseline; the modified fixture exercises compatibility with custom-skin data.
 
 **Scope limitation:** this confirms the DAT header, relocation table, node and
-string tables, and the two root structure layouts. It does not yet prove that
-DTW's entire recursive HSD tree decoder succeeds, enumerate/decode GX textures,
-or rebuild the DAT. Those remain required milestones for the native Linux port.
+string tables, and the two root structure layouts for each file. It does not
+yet prove that DTW's entire recursive HSD tree decoder succeeds,
+enumerate/decode GX textures, or rebuild either DAT. Those remain required
+milestones for the native Linux port.
