@@ -15,8 +15,9 @@ Working branch: `linux-port`
 - [x] Add GitHub Actions checks for the isolated compatibility layer.
 
 Recorded local validation:
-- 11 compatibility unit tests passed on Python 3.
-- `dtw_platform.py` passed `py_compile`.
+- 11 platform-helper tests passed on Python 3.
+- DAT probe tests cover valid/malformed synthetic HSD headers and tables.
+- `dtw_platform.py`, `dtw_dat_probe.py`, and their test modules pass `py_compile`.
 
 The full application is **not yet a native Linux program**. Do not remove the
 launch guard or create `.linux-port-ready` until the application is converted
@@ -114,3 +115,38 @@ known-good, legally supplied fixtures and expected output hashes.
 
 Do not describe the application as Linux-ready until the Python 3 conversion,
 native helper integration, and those binary-format regression tests are complete.
+
+
+## User-provided DAT fixture verification — 2026-11-04
+
+A user-supplied Green Fox Melee skin file, `PlFxGr-TAILS.dat`, was inspected
+locally. The DAT itself was not added to this public repository.
+
+Read-only structural probe result:
+- File size: 424,158 bytes; the DAT header declares the same size.
+- The 0x20-byte HSD header can be unpacked using the same `>5I` layout as
+  upstream `hsdFiles.datFileObj.parseHeader()`.
+- Data section size: 424,126 bytes.
+- Relocation table: 1,658 entries; all pointer locations and pointer targets
+  checked by the probe are within the expected data area.
+- Root nodes: 2; reference nodes: 0.
+- Both root node labels resolve in the ASCII string table:
+  `PlyFox5KGr_Share_joint` at data offset 317,536 and
+  `PlyFox5KGr_Share_matanim_joint` at data offset 319,120.
+- Root/reference node table and string-table boundaries are consistent.
+- Probe result: **valid**, with no structural errors or warnings.
+
+A reusable read-only probe is now in `dtw_dat_probe.py`:
+
+```bash
+python3 dtw_dat_probe.py /path/to/PlFxGr-TAILS.dat
+```
+
+The committed `tests/test_dat_probe.py` builds synthetic HSD DAT byte
+sequences to test valid headers, malformed bounds, bad relocation entries,
+missing labels, and size discrepancies. It does not publish the user's DAT.
+
+**Scope limitation:** this verifies the HSD header/relocation/node/string-table
+structure. It does not yet run DTW's full HSD structure decoder, enumerate or
+decode embedded GX textures, save a rebuilt DAT, or prove that a modified file
+loads in Dolphin. Those remain end-to-end tests for after the Python 3 port.
