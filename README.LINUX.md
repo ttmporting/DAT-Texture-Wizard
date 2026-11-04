@@ -55,3 +55,21 @@ large Python 2 codebase is migrated.
 4. Keep Linux settings/cache/output paths separate from the source checkout
    when appropriate, using XDG directories in a later packaging step.
 5. Do not mark the port ready until texture and DAT round-trip tests pass.
+
+
+## Native GUI navigation preview
+
+A read-only native Tk preview now provides the original Structural Analysis
+navigation pattern (File Header, relocation/root/reference/string tables, and
+expandable HSD structure branches). It is an early GUI milestone, not yet the
+full texture editor. Install Tkinter and start it with:
+
+```bash
+sudo dnf install python3-tkinter
+./run-gui-preview.sh
+```
+
+Open a DAT immediately by passing its path to the launcher. See
+[`README.GUI.LINUX.md`](README.GUI.LINUX.md) for details and current limitations.
+The main `run-linux.sh` remains guarded until the entire application and binary
+round-trip tests are complete.
