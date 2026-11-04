@@ -15,7 +15,7 @@ Working branch: `linux-port`
 - [x] Add GitHub Actions checks for the isolated compatibility layer.
 
 Recorded local validation:
-- 11 platform-helper tests passed on Python 3.
+- 17 total unit tests passed on Python 3: 11 platform-helper tests and 6 DAT-probe tests.
 - DAT probe tests cover valid/malformed synthetic HSD headers and tables.
 - `dtw_platform.py`, `dtw_dat_probe.py`, and their test modules pass `py_compile`.
 
@@ -150,3 +150,9 @@ missing labels, and size discrepancies. It does not publish the user's DAT.
 structure. It does not yet run DTW's full HSD structure decoder, enumerate or
 decode embedded GX textures, save a rebuilt DAT, or prove that a modified file
 loads in Dolphin. Those remain end-to-end tests for after the Python 3 port.
+
+
+Latest verification after adding the DAT probe:
+- GitHub Actions run [#41887908094](https://github.com/ttmporting/DAT-Texture-Wizard/actions/runs/41887908094) completed successfully.
+- 17 unit tests passed.
+- The complete Linux foundation check script passed.
