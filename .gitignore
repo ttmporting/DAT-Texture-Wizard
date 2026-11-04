@@ -1,13 +1,20 @@
-# Ignore compiled python files
+# Ignore compiled Python files
 *.pyc
+__pycache__/
 
 # Ignore the settings.ini file (user settings)
 *.ini
 
 # Ignore directories output by build operations
 /[Bb]uild*/
+/dist/
 
-# Ignore program temporary files
+# Python virtual environments and test caches
+.venv/
+venv/
+.pytest_cache/
+
+# Program temporary files
 bin/tempFiles/
 
 # Visual Studio Code project folder
