@@ -9,7 +9,7 @@ python3 -m unittest discover -s tests -v
 
 echo
 echo "== Compile Python 3 compatibility helpers =="
-python3 -m py_compile dtw_platform.py tests/test_dtw_platform.py
+python3 -m py_compile dtw_platform.py dtw_dat_probe.py tests/test_dtw_platform.py tests/test_dat_probe.py
 
 echo
 echo "== Audit remaining Python 2 / Windows-only constructs =="
