@@ -4,12 +4,13 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-echo "== Compatibility unit tests =="
+echo "== Compatibility and DAT navigation unit tests =="
 python3 -m unittest discover -s tests -v
 
 echo
-echo "== Compile Python 3 compatibility helpers =="
-python3 -m py_compile dtw_platform.py dtw_dat_probe.py tests/test_dtw_platform.py tests/test_dat_probe.py
+echo "== Compile Python 3 compatibility and GUI modules =="
+python3 -m py_compile dtw_platform.py dtw_dat_probe.py dtw_dat_tree.py dtw_gui.py \
+    tests/test_dtw_platform.py tests/test_dat_probe.py tests/test_dat_tree_model.py
 
 echo
 echo "== Audit remaining Python 2 / Windows-only constructs =="
@@ -18,6 +19,7 @@ python3 scripts/audit-python2.py
 echo
 echo "== Validate shell scripts =="
 bash -n run-linux.sh
+bash -n run-gui-preview.sh
 bash -n scripts/install-nobara-deps.sh
 bash -n scripts/run-tests.sh
 
@@ -40,4 +42,5 @@ fi
 rm -f .linux-launch-guard.log
 
 echo
-echo "Linux port foundation checks passed. Application functionality is not yet certified."
+echo "Linux port foundation and DAT tree model checks passed."
+echo "The GUI navigation preview is read-only; texture decode/rebuild and full app readiness are not certified."
