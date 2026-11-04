@@ -156,3 +156,38 @@ Latest verification after adding the DAT probe:
 - GitHub Actions run [#41887908094](https://github.com/ttmporting/DAT-Texture-Wizard/actions/runs/41887908094) completed successfully.
 - 17 unit tests passed.
 - The complete Linux foundation check script passed.
+
+
+## Second user-provided DAT fixture — 2026-11-04
+
+A second real Melee DAT was extracted by the user from their GameCube ISO
+with Wiimm's ISO Tool 3.05a. The ISO itself was not uploaded to this repository,
+and this extracted DAT was also kept out of the public repository.
+
+Local read-only probe of `PlFxGr.dat`:
+- Size: 362,982 bytes; header-declared size matches.
+- SHA-256: `b8a41b28a72c5ce2adc0705075662f73763553838356557ecd302e40c066e6d4`.
+- Relocation table: 1,792 entries; all relocation pointer locations are
+  4-byte aligned and all 1,792 targets were within the data area.
+- Root nodes: 2; reference nodes: 0; both labels resolve:
+  `PlyFox5KGr_Share_joint` and
+  `PlyFox5KGr_Share_matanim_joint`.
+- Probe result: **valid**, with no structural errors or warnings.
+
+An additional read-only root-layout check matched the root entries to the
+current upstream DTW structure definitions:
+- The joint root at data offset 116,328 has an inferred 0x40-byte span and
+  matches the 0x40-byte `JointObjDesc` layout. Its child and display-object
+  pointer fields are present in the relocation table.
+- The material-animation root at data offset 338,440 has an inferred 0x0C-byte
+  span and matches the 0x0C-byte `MatAnimJointDesc` layout. Its child and
+  material-animation pointer fields are present in the relocation table.
+
+The new file and the earlier user-supplied `PlFxGr-TAILS.dat` have different
+sizes and relocation counts, but both expose the same two Fox Green root
+labels. Both binaries remain local to the test workspace; neither is committed.
+
+**Scope limitation:** this confirms the DAT header, relocation table, node and
+string tables, and the two root structure layouts. It does not yet prove that
+DTW's entire recursive HSD tree decoder succeeds, enumerate/decode GX textures,
+or rebuild the DAT. Those remain required milestones for the native Linux port.
