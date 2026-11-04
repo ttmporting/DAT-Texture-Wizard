@@ -206,3 +206,34 @@ string tables, and the two root structure layouts for each file. It does not
 yet prove that DTW's entire recursive HSD tree decoder succeeds,
 enumerate/decode GX textures, or rebuild either DAT. Those remain required
 milestones for the native Linux port.
+
+
+## Native GUI navigation preview — first iteration
+
+The branch now includes a standalone Python 3/Tk GUI preview:
+- `dtw_dat_tree.py` parses the existing HSD header/relocation/node/string
+  tables and builds a read-only lazy structure-navigation model.
+- `dtw_gui.py` provides File/Open/Reload, a two-column expandable tree with
+  offsets, search over currently populated rows, Properties and Raw Data panes,
+  and a reserved DAT Texture Tree tab.
+- `run-gui-preview.sh` launches the preview without changing the main
+  fail-closed `run-linux.sh` entrypoint.
+- The tree follows the legacy Structural Analysis layout: File Header contains
+  Relocation, Root Nodes, Reference Nodes (when present), and String Tables.
+  Known `Next_Sibling` links appear as peer rows under the common parent.
+
+Validation performed locally:
+- 10 unit tests pass, including 5 new tests for the DAT tree model.
+- Both user-provided Fox Green DATs load into the model and show their two root
+  labels; their root branches were expanded successfully in an Xvfb GUI smoke
+  test. The original extracted DAT displayed 74 immediate peer/child rows on
+  its Joint root; the custom-skin DAT displayed 79.
+- GUI smoke tests confirmed the root table, branch population, structure
+  selection, Properties pane, and raw-data view render under Tk 8.6.
+
+**Important scope boundary:** this is not yet the complete original HSD
+recursive class-validation engine. Only a subset of common fighter model and
+material-animation structures has explicit field/sibling metadata; other
+nodes remain generic pointer structures. The GUI is read-only. It does not yet
+enumerate or decode GX textures, preview images, import/export texture data,
+save changes, or rebuild DAT files. Do not remove the main launcher guard.
