@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+echo "== Compatibility unit tests =="
+python3 -m unittest discover -s tests -v
+
+echo
+echo "== Compile Python 3 compatibility helpers =="
+python3 -m py_compile dtw_platform.py tests/test_dtw_platform.py
+
+echo
+echo "== Audit remaining Python 2 / Windows-only constructs =="
+python3 scripts/audit-python2.py
+
+echo
+echo "== Validate shell scripts =="
+bash -n run-linux.sh
+bash -n scripts/install-nobara-deps.sh
+bash -n scripts/run-tests.sh
+
+echo
+echo "== Verify launcher fails closed before port readiness =="
+if [[ -e .linux-port-ready ]]; then
+    echo "Unexpected .linux-port-ready marker in unverified checkout." >&2
+    exit 1
+fi
+set +e
+./run-linux.sh > .linux-launch-guard.log 2>&1
+launcher_status=$?
+set -e
+cat .linux-launch-guard.log
+if [[ "$launcher_status" -ne 2 ]] || ! grep -q "not launch-ready yet" .linux-launch-guard.log; then
+    rm -f .linux-launch-guard.log
+    echo "Launcher did not enforce its unready guard as expected." >&2
+    exit 1
+fi
+rm -f .linux-launch-guard.log
+
+echo
+echo "Linux port foundation checks passed. Application functionality is not yet certified."
