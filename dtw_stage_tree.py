@@ -24,7 +24,11 @@ def _stage_key_and_group(entry: FstEntry) -> tuple[str, str, str] | None:
     name = entry.name
     stem = name.rsplit(".", 1)[0] if "." in name else name
     code = name[2:5].upper()
-    if len(stem) >= 5 and stem[2:3].upper() == "T":
+    is_target_test = (
+        stem[2:3].upper() == "T"
+        and (name.casefold().endswith(".dat") or name.casefold() == "grtlg.0at")
+    )
+    if len(stem) >= 5 and is_target_test:
         character_code = stem[3:5].upper()
         description = stage_description(name) or "Target Test stage"
         return ("target:" + character_code, "Target Tests", description.removesuffix(" stage"),)
