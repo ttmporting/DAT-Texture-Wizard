@@ -73,3 +73,11 @@ Open a DAT immediately by passing its path to the launcher. See
 [`README.GUI.LINUX.md`](README.GUI.LINUX.md) for details and current limitations.
 The main `run-linux.sh` remains guarded until the entire application and binary
 round-trip tests are complete.
+
+
+The native GUI preview now opens to a Melee-oriented GameCube **Melee File Tree**
+with System / Characters / Menus / Stages shortcuts and right-side Export,
+Import, Browse Textures, and Analyze Structure actions. File export is active;
+Import stages a replacement and can save a verified copy when the replacement
+fits the existing disc allocation. Full ISO relocation/rebuild and texture
+editing are still in development. See [README.GUI.LINUX.md](README.GUI.LINUX.md).
