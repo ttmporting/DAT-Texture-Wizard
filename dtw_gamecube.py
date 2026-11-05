@@ -380,7 +380,7 @@ class GameCubeIso:
                 # The parent field is part of the FST format. Reconstruct it from
                 # the directory preorder ranges rather than preserving malformed
                 # parent indices seen in some rebuilt/custom images.
-                struct.pack_into(">I", new_fst, entry.index * FST_ENTRY_SIZE + 4, entry.parent_index)
+                struct.pack_into(">I", new_fst, entry.index * FST_ENTRY_SIZE + 4, max(0, entry.parent_index))
                 continue
             replacement_path = staged_paths.get(entry.index)
             file_size = replacement_path.stat().st_size if replacement_path else int(entry.size or 0)
