@@ -592,7 +592,7 @@ class DatTextureWizardPreview:
         self.status.set("Replacement staged for {} — source ISO not changed".format(entry.path))
         messagebox.showinfo(
             "Replacement staged",
-            "{}\n\nOriginal size: {:,} bytes\nReplacement size: {:,} bytes\nSafe available range: {:,} bytes\n\n"
+            "{}\n\nOriginal size: {:,} bytes\nReplacement size: {:,} bytes\nCurrent free range: {}\n\n"
             "Use Rebuild / Save ISO As… to create a verified copy. All files will be relocated and repacked; "
             "the source ISO will remain untouched.".format(
                 entry.path, int(staged_info["old_size"]), int(staged_info["new_size"]),
@@ -616,9 +616,9 @@ class DatTextureWizardPreview:
         stem = original.stem
         ext = original.suffix or ".iso"
         destination = filedialog.asksaveasfilename(
-            title="Save patched GameCube ISO copy",
+            title="Rebuild GameCube ISO as a new copy",
             initialdir=str(original.parent),
-            initialfile=stem + "-patched" + ext,
+            initialfile=stem + "-rebuilt" + ext,
             defaultextension=ext,
             filetypes=[("GameCube images", "*.iso *.gcm"), ("All files", "*.*")],
         )
@@ -635,13 +635,13 @@ class DatTextureWizardPreview:
         try:
             result = self.iso.rebuild_patched_copy(target, self.staged, overwrite=overwrite)
         except (OSError, ReplacementError, GameCubeFormatError, ValueError) as exc:
-            messagebox.showerror("Could not save patched ISO", str(exc), parent=self.root)
+            messagebox.showerror("Could not rebuild ISO", str(exc), parent=self.root)
             return
         messagebox.showinfo(
             "Rebuilt ISO saved and verified",
-            "Created: {}\nGame ID: {}\nSize: {:,} bytes\nFiles replaced: {}\n\n"
-            "The original ISO was not modified.".format(
-                result["destination"], result["game_id"], result["size"], len(result["replacements"])
+            "Created: {}\nGame ID: {}\nSize: {:,} bytes\nFST offset: 0x{:X}\nFiles replaced: {}\n\n"
+            "All disc files were repacked and verified. The original ISO was not modified.".format(
+                result["destination"], result["game_id"], result["size"], result["fst_offset"], len(result["replacements"])
             ),
             parent=self.root,
         )
