@@ -302,7 +302,8 @@ Rebuild algorithm:
 3. Copy the original system prefix through the DOL end, preserving the
    boot header, BI2, apploader and DOL bytes at their original locations.
 4. Place a new FST at the next 0x20-byte boundary after the system prefix.
-   Preserve directory records and the string table; rewrite every file record
+   Preserve directory records and the string table; normalize each directory's
+   parent index from its recovered preorder nesting; rewrite every file record
    with a new offset and current file size.
 5. Repack every FST-listed file in FST order on 0x20-byte boundaries. Copy
    unmodified files from the original image and staged files from their
@@ -324,8 +325,14 @@ Safety limits:
   texture-level import/export, DAT rebuilding and full DTW feature parity are
   still outstanding.
 
-Automated tests now include oversized replacement, repacking unchanged files,
-FST offset/size update, source-image immutability, and hash-verified output.
-The native CI check compiles `dtw_gamecube.py` and its test module as well as
-running the full unit suite. The real TM-CE ISO still needs a local Nobara test
-because the 713 MB user image is not part of the repository or CI fixtures.
+Automated validation:
+- 32 unit tests pass, including oversized replacement, unchanged-file repacking,
+  FST offset/size updates, normalization of incorrect directory parent indices,
+  preservation of the system prefix, source-image immutability, and hash
+  verification.
+- CI run [#41977458422](https://github.com/ttmporting/DAT-Texture-Wizard/actions/runs/41977458422)
+  completed successfully, including Python compilation and shell validation.
+
+The actual 713 MB TM-CE ISO has not yet been run through the new rebuild on
+Nobara. The user should test that local image next; it is not part of the
+repository or CI fixtures.
