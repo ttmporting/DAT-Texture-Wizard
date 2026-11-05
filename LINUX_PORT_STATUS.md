@@ -239,7 +239,7 @@ enumerate or decode GX textures, preview images, import/export texture data,
 save changes, or rebuild DAT files. Do not remove the main launcher guard.
 
 
-## Melee-first disc browser and file import/export — 2026-11-05
+## Melee-first disc browser and file import/export — 2026-11-04
 
 The native GUI now opens to the GameCube disc browser, with a Melee-first
 presentation for known Melee game IDs (including the custom `GTME01` ID used
@@ -287,7 +287,7 @@ Important limits:
 - The application is still not ready to run as a complete Linux texture editor.
 
 
-## Full GameCube ISO rebuild — 2026-11-05
+## Full GameCube ISO rebuild — 2026-11-04
 
 The previous safe-in-place-only import step has been superseded by
 `GameCubeIso.rebuild_patched_copy()`. The GUI now stages a replacement even
