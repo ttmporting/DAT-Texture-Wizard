@@ -1,84 +1,168 @@
 #!/usr/bin/env python3
-"""Native, read-only Tk GUI preview for DAT Texture Wizard navigation."""
+"""Native Tk GUI preview: Melee-oriented GameCube file tree and DAT navigation."""
 from __future__ import annotations
 
 import argparse
+import os
 import struct
 import tkinter as tk
+from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from dtw_dat_probe import DatFormatError
 from dtw_dat_tree import DatTreeModel, TreeRecord
+from dtw_gamecube import GameCubeFormatError, GameCubeIso, ReplacementError, FstEntry
 
 
 class DatTextureWizardPreview:
     def __init__(self, root: tk.Tk, initial_file: str | None = None):
         self.root = root
-        self.model: DatTreeModel | None = None
+        self.iso: GameCubeIso | None = None
+        self.dat_model: DatTreeModel | None = None
         self.records: dict[str, TreeRecord] = {}
         self.loaded: set[str] = set()
+        self.disc_iids: dict[int, str] = {}
+        self.disc_loaded: set[int] = set()
+        self.staged: dict[int, str] = {}
+        self.selected_disc_entry: FstEntry | None = None
+        self.search_hits: list[int] = []
+        self.search_index = -1
+
         self.root.title("DAT Texture Wizard — Linux Preview")
-        self.root.geometry("1200x760")
-        self.root.minsize(900, 560)
+        self.root.geometry("1380x820")
+        self.root.minsize(1020, 640)
         self._build_menu()
         self._build_toolbar()
         self._build_tabs()
-        self.status = tk.StringVar(value="Ready — open a DAT file")
+        self.status = tk.StringVar(value="Ready — open a Melee GameCube ISO or a standalone DAT")
         ttk.Separator(root).pack(fill="x")
         ttk.Label(root, textvariable=self.status, anchor="w", padding=(8, 4)).pack(fill="x")
-        root.bind("<Control-o>", lambda _e: self.open_file())
+        root.bind("<Control-o>", lambda _e: self.open_iso())
+        root.bind("<Control-d>", lambda _e: self.open_dat())
         root.bind("<Control-f>", lambda _e: self.search_entry.focus_set())
-        root.bind("<F5>", lambda _e: self.reload_file())
+        root.bind("<F5>", lambda _e: self.reload_current())
         if initial_file:
-            root.after(120, lambda: self.load_file(initial_file))
+            suffix = Path(initial_file).suffix.casefold()
+            root.after(120, lambda: self.load_iso(initial_file) if suffix in {".iso", ".gcm"} else self.load_file(initial_file))
 
+    # ------------------------------------------------------------------ menus
     def _build_menu(self):
         menu = tk.Menu(self.root)
         file_menu = tk.Menu(menu, tearoff=False)
-        file_menu.add_command(label="Open DAT…", accelerator="Ctrl+O", command=self.open_file)
-        file_menu.add_command(label="Reload", accelerator="F5", command=self.reload_file)
+        file_menu.add_command(label="Open GameCube ISO / GCM…", accelerator="Ctrl+O", command=self.open_iso)
+        file_menu.add_command(label="Open Standalone DAT…", accelerator="Ctrl+D", command=self.open_dat)
+        file_menu.add_command(label="Reload", accelerator="F5", command=self.reload_current)
+        file_menu.add_separator()
+        file_menu.add_command(label="Save Patched ISO As…", command=self.save_patched_iso, state="disabled")
+        self.save_menu_index = 4
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.destroy)
         menu.add_cascade(label="File", menu=file_menu)
+        self.file_menu = file_menu
         tools_menu = tk.Menu(menu, tearoff=False)
-        tools_menu.add_command(label="Find Structure…", accelerator="Ctrl+F", command=self.focus_search)
+        tools_menu.add_command(label="Find in Melee Disc…", accelerator="Ctrl+F", command=self.focus_search)
+        tools_menu.add_command(label="Export Selected File / Folder", command=self.export_selected)
+        tools_menu.add_command(label="Import Replacement File…", command=self.import_replacement)
         menu.add_cascade(label="Tools", menu=tools_menu)
         help_menu = tk.Menu(menu, tearoff=False)
         help_menu.add_command(label="About", command=self.show_about)
         menu.add_cascade(label="Help", menu=help_menu)
         self.root.configure(menu=menu)
 
+    # --------------------------------------------------------------- toolbar
     def _build_toolbar(self):
         bar = ttk.Frame(self.root, padding=(10, 8))
         bar.pack(fill="x")
-        ttk.Button(bar, text="Open DAT", command=self.open_file).pack(side="left")
-        ttk.Button(bar, text="Reload", command=self.reload_file).pack(side="left", padx=(6, 14))
-        ttk.Label(bar, text="Find:").pack(side="left")
+        ttk.Button(bar, text="Open Melee ISO", command=self.open_iso).pack(side="left")
+        ttk.Button(bar, text="Open DAT", command=self.open_dat).pack(side="left", padx=(6, 14))
+        ttk.Label(bar, text="Find in disc:").pack(side="left")
         self.query = tk.StringVar()
         self.search_entry = ttk.Entry(bar, textvariable=self.query, width=28)
         self.search_entry.pack(side="left", padx=6)
-        self.search_entry.bind("<Return>", lambda _e: self.search_next())
-        ttk.Button(bar, text="Find next", command=self.search_next).pack(side="left")
-        self.filename = tk.StringVar(value="No DAT loaded")
+        self.search_entry.bind("<Return>", lambda _e: self.search_disc_next())
+        ttk.Button(bar, text="Find next", command=self.search_disc_next).pack(side="left")
+        self.filename = tk.StringVar(value="No disc or DAT loaded")
         ttk.Label(bar, textvariable=self.filename, anchor="e").pack(side="right", fill="x", expand=True, padx=12)
 
+    # ------------------------------------------------------------------ tabs
     def _build_tabs(self):
         self.tabs = ttk.Notebook(self.root)
         self.tabs.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+
+        self.disc_tab = ttk.Frame(self.tabs)
+        self.tabs.add(self.disc_tab, text="Melee File Tree")
+        self._build_disc_view()
+
         self.sa_tab = ttk.Frame(self.tabs)
         self.tabs.add(self.sa_tab, text="Structural Analysis")
         self._build_structure_view()
+
         self.texture_tab = ttk.Frame(self.tabs, padding=24)
         self.tabs.add(self.texture_tab, text="DAT Texture Tree")
-        ttk.Label(self.texture_tab, text="DAT Texture Tree", font=("TkDefaultFont", 14, "bold")).pack(anchor="w")
-        ttk.Label(
-            self.texture_tab,
-            text=("This tab is reserved for the expandable texture/model hierarchy, texture thumbnails, "
-                  "and import/export actions. It will be connected after the HSD decoder and GX texture "
-                  "reader are ported."),
-            wraplength=760, justify="left"
-        ).pack(anchor="w", pady=(8, 0))
-        ttk.Label(self.texture_tab, text="Current milestone: read-only structure navigation.", foreground="#526579").pack(anchor="w", pady=(14, 0))
+        self.texture_heading = ttk.Label(self.texture_tab, text="DAT Texture Tree", font=("TkDefaultFont", 14, "bold"))
+        self.texture_heading.pack(anchor="w")
+        self.texture_summary = tk.Text(self.texture_tab, height=16, wrap="word", borderwidth=0, state="disabled")
+        self.texture_summary.pack(fill="both", expand=True, pady=(8, 0))
+        self.set_text(
+            self.texture_summary,
+            "Open a character or stage DAT using Browse Textures.\n\n"
+            "The native texture hierarchy and GX image decoder are the next migration stage. "
+            "Texture thumbnails, import/export, and texture replacement are not enabled in this preview."
+        )
+
+    def _build_disc_view(self):
+        panes = ttk.Panedwindow(self.disc_tab, orient="horizontal")
+        panes.pack(fill="both", expand=True)
+        left = ttk.Frame(panes, padding=(5, 6, 4, 4))
+        right = ttk.Frame(panes, padding=(12, 12, 12, 6), width=280)
+        panes.add(left, weight=5)
+        panes.add(right, weight=2)
+
+        shortcuts = ttk.Frame(left)
+        shortcuts.pack(fill="x", pady=(0, 5))
+        ttk.Label(shortcuts, text="Melee shortcuts:").pack(side="left", padx=(2, 7))
+        for label, key in (("System", "system"), ("Characters", "characters"), ("Menus", "menus"), ("Stages", "stages")):
+            ttk.Button(shortcuts, text=label, width=11, command=lambda value=key: self.disc_quick_link(value)).pack(side="left", padx=2)
+
+        self.disc_tree = ttk.Treeview(
+            left, columns=("kind", "size", "offset"), show="tree headings", selectmode="browse"
+        )
+        self.disc_tree.heading("#0", text="Disc File Tree (FST order)", anchor="center")
+        self.disc_tree.heading("kind", text="Type", anchor="center")
+        self.disc_tree.heading("size", text="Size", anchor="center")
+        self.disc_tree.heading("offset", text="Disc Offset", anchor="center")
+        self.disc_tree.column("#0", width=330, minwidth=220, stretch=True)
+        self.disc_tree.column("kind", width=78, minwidth=70, stretch=False, anchor="center")
+        self.disc_tree.column("size", width=110, minwidth=90, stretch=False, anchor="e")
+        self.disc_tree.column("offset", width=112, minwidth=100, stretch=False, anchor="e")
+        dy = ttk.Scrollbar(left, orient="vertical", command=self.disc_tree.yview)
+        dx = ttk.Scrollbar(left, orient="horizontal", command=self.disc_tree.xview)
+        self.disc_tree.configure(yscrollcommand=dy.set, xscrollcommand=dx.set)
+        self.disc_tree.pack(side="left", fill="both", expand=True)
+        dy.pack(side="right", fill="y")
+        dx.pack(side="bottom", fill="x")
+        self.disc_tree.tag_configure("directory", foreground="#285b83")
+        self.disc_tree.tag_configure("changed", foreground="#b35b12")
+        self.disc_tree.bind("<<TreeviewOpen>>", self.on_disc_open)
+        self.disc_tree.bind("<<TreeviewSelect>>", self.on_disc_select)
+        self.disc_tree.bind("<Double-1>", self.on_disc_double_click)
+
+        ttk.Label(right, text="Selected Disc Item", font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
+        self.disc_details = tk.Text(right, height=12, wrap="word", borderwidth=0, state="disabled")
+        self.disc_details.pack(fill="x", pady=(8, 12))
+        self.export_button = ttk.Button(right, text="Export", command=self.export_selected, state="disabled")
+        self.import_button = ttk.Button(right, text="Import", command=self.import_replacement, state="disabled")
+        self.browse_button = ttk.Button(right, text="Browse Textures", command=self.browse_textures, state="disabled")
+        self.analyze_button = ttk.Button(right, text="Analyze Structure", command=self.analyze_structure, state="disabled")
+        for button in (self.export_button, self.import_button, self.browse_button, self.analyze_button):
+            button.pack(fill="x", pady=4)
+        ttk.Separator(right).pack(fill="x", pady=10)
+        self.save_copy_button = ttk.Button(right, text="Save Patched ISO As…", command=self.save_patched_iso, state="disabled")
+        self.save_copy_button.pack(fill="x", pady=4)
+        self.staged_label = ttk.Label(right, text="No staged replacements", wraplength=255, foreground="#536274")
+        self.staged_label.pack(anchor="w", pady=(8, 0))
+        self.disc_info_label = ttk.Label(right, text="Open a GameCube ISO to browse its Melee files.", wraplength=255, justify="left")
+        self.disc_info_label.pack(anchor="w", pady=(18, 0))
 
     def _build_structure_view(self):
         panes = ttk.Panedwindow(self.sa_tab, orient="horizontal")
@@ -135,60 +219,478 @@ class DatTextureWizardPreview:
         widget.insert("1.0", value)
         widget.configure(state="disabled")
 
-    def open_file(self):
+    # -------------------------------------------------------------- open files
+    def open_iso(self):
         path = filedialog.askopenfilename(
-            title="Open DAT file",
+            title="Open Melee / GameCube disc image",
+            filetypes=[("GameCube images", "*.iso *.gcm"), ("All files", "*.*")],
+        )
+        if path:
+            self.load_iso(path)
+
+    def open_dat(self):
+        path = filedialog.askopenfilename(
+            title="Open standalone DAT file",
             filetypes=[("DAT / USD files", "*.dat *.usd *.0at *.1at *.2at *.3at *.4at *.5at *.6at *.7at *.8at *.9at"), ("All files", "*.*")],
         )
         if path:
             self.load_file(path)
 
-    def reload_file(self):
-        if self.model:
-            self.load_file(str(self.model.path))
+    def reload_current(self):
+        if self.iso:
+            self.load_iso(str(self.iso.path))
+        elif self.dat_model:
+            self.load_file(str(self.dat_model.path))
+
+    def load_iso(self, path: str):
+        try:
+            model = GameCubeIso(path)
+        except (OSError, GameCubeFormatError, ValueError, struct.error) as exc:
+            messagebox.showerror("Unable to open GameCube image", str(exc), parent=self.root)
+            self.status.set("Disc open failed")
+            return
+        self.iso = model
+        self.staged.clear()
+        self.disc_iids.clear()
+        self.disc_loaded.clear()
+        self.selected_disc_entry = None
+        self.disc_tree.delete(*self.disc_tree.get_children(""))
+        title = "Super Smash Bros. Melee" if model.is_melee else "GameCube Disc"
+        root_text = "{} — {} ({})".format(model.game_id, title, model.path.name)
+        root_iid = "disc-root"
+        self.disc_tree.insert("", "end", iid=root_iid, text=root_text, values=("Disc", "", "0x00000000"), tags=("directory",), open=True)
+        self.disc_iids[0] = root_iid
+        self._populate_disc_directory(0)
+        self.filename.set(model.path.name)
+        self.disc_info_label.configure(
+            text="Game ID: {}\nFiles: {:,}\nFolders: {:,}\nDisc size: {:,} bytes\nFST: 0x{:X} ({:,} bytes)".format(
+                model.game_id, model.file_count, model.directory_count, model.iso_size, model.fst_offset, model.fst_size
+            )
+        )
+        warning = (" — " + model.warnings[0]) if model.warnings else ""
+        self.status.set("Opened {} — {} files, {} folders{}".format(model.game_id, model.file_count, model.directory_count, warning))
+        self._show_disc_overview()
+        self._update_staged_controls()
+        self.tabs.select(self.disc_tab)
+        self.set_text(self.texture_summary, "No DAT selected. Choose a .dat or .usd file in the Melee File Tree and use Browse Textures or Analyze Structure.")
 
     def load_file(self, path: str):
         try:
             model = DatTreeModel(path)
         except (OSError, DatFormatError, ValueError, struct.error) as exc:
             messagebox.showerror("Unable to open DAT", str(exc), parent=self.root)
-            self.status.set("Open failed")
+            self.status.set("DAT open failed")
             return
-        self.model = model
+        self._set_dat_model(model)
+        self.tabs.select(self.sa_tab)
+
+    def load_dat_bytes(self, data: bytes, display_name: str, disc_path: str):
+        try:
+            model = DatTreeModel(Path(display_name), data=data)
+        except (DatFormatError, ValueError, struct.error) as exc:
+            messagebox.showerror("Unable to read DAT", "{}\n\nDisc path: {}".format(exc, disc_path), parent=self.root)
+            self.status.set("DAT could not be parsed")
+            return False
+        self._set_dat_model(model)
+        self.status.set("Loaded {} from {}".format(display_name, disc_path))
+        return True
+
+    def _set_dat_model(self, model: DatTreeModel):
+        self.dat_model = model
         self.records.clear()
         self.loaded.clear()
         self.tree.delete(*self.tree.get_children(""))
         records = model.root_tree_records()
         header = records[0]
         self.insert_record("", header, offset_text="0")
-        # Original navigation: DAT sections live below the expanded File Header.
         for item in records[1:]:
             self.insert_record(header.iid, item)
         self.tree.heading("#0", text=model.file_name)
         self.tree.item(header.iid, open=True)
-        # The original viewer opens the root/reference node tables by default.
         for item in records[1:]:
             if item.kind in {"root_table", "reference_table"}:
                 self.tree.item(item.iid, open=True)
                 self.populate_table(item)
-        self.filename.set(model.file_name)
-        self.status.set("Loaded {} — {:,} bytes, {} relocations, {} root nodes".format(
-            model.file_name, len(model.data), model.rt_count, len(model.root_nodes)))
-        self.show_file_overview()
+        self._show_file_overview()
+        self.texture_heading.configure(text="DAT Texture Tree — {}".format(model.file_name))
+        self.set_text(
+            self.texture_summary,
+            "{}\n\nDisc path / source: {}\n\nThe DAT's HSD container parsed successfully. "
+            "Texture enumeration, GX texture decoding, thumbnails, texture import/export, and DAT rebuilding "
+            "are not yet implemented in the Linux preview.".format(model.file_name, model.path)
+        )
 
+    # -------------------------------------------------------------- disc tree
+    def _entry_iid(self, index: int) -> str:
+        return "disc-entry-{}".format(index)
+
+    def _populate_disc_directory(self, directory_index: int):
+        if not self.iso or directory_index in self.disc_loaded:
+            return
+        parent_iid = self.disc_iids.get(directory_index)
+        if not parent_iid:
+            return
+        for child in self.iso.children_of(directory_index):
+            iid = self._entry_iid(child.index)
+            self.disc_iids[child.index] = iid
+            if child.is_directory:
+                self.disc_tree.insert(parent_iid, "end", iid=iid, text=child.name, values=("Folder", "", ""), tags=("directory",))
+                if self.iso.children_of(child.index):
+                    self.disc_tree.insert(iid, "end", iid=iid + "/__pending__", text="", values=("", "", ""))
+            else:
+                tags = ("changed",) if child.index in self.staged else ()
+                self.disc_tree.insert(
+                    parent_iid, "end", iid=iid, text=child.name,
+                    values=("File", self._format_size(self._effective_size(child)), "0x{:08X}".format(child.offset or 0)),
+                    tags=tags,
+                )
+        self.disc_loaded.add(directory_index)
+
+    def _format_size(self, size: int | None) -> str:
+        if size is None:
+            return ""
+        return "{:,} B".format(size)
+
+    def _effective_size(self, entry: FstEntry) -> int:
+        staged = self.staged.get(entry.index)
+        if staged:
+            try:
+                return Path(staged).stat().st_size
+            except OSError:
+                pass
+        return entry.size or 0
+
+    def on_disc_open(self, _event):
+        if not self.iso:
+            return
+        iid = self.disc_tree.focus()
+        if iid == "disc-root":
+            self._remove_disc_pending(iid)
+            self._populate_disc_directory(0)
+            return
+        entry = self._entry_from_iid(iid)
+        if entry and entry.is_directory:
+            self._remove_disc_pending(iid)
+            self._populate_disc_directory(entry.index)
+
+    def _remove_disc_pending(self, iid: str):
+        for child in self.disc_tree.get_children(iid):
+            if child.endswith("/__pending__"):
+                self.disc_tree.delete(child)
+
+    def _entry_from_iid(self, iid: str) -> FstEntry | None:
+        if not self.iso or not iid.startswith("disc-entry-"):
+            return None
+        try:
+            return self.iso.get_entry(int(iid.rsplit("-", 1)[1]))
+        except (ValueError, KeyError):
+            return None
+
+    def on_disc_select(self, _event):
+        if not self.iso:
+            return
+        selection = self.disc_tree.selection()
+        if not selection:
+            self.selected_disc_entry = None
+            return
+        iid = selection[0]
+        entry = self._entry_from_iid(iid)
+        self.selected_disc_entry = entry
+        if entry is None:
+            self._show_disc_overview()
+            self._set_disc_buttons(False, False, False, False)
+            return
+        staged_path = self.staged.get(entry.index)
+        lines = [
+            entry.name,
+            "Type: {}".format("Folder" if entry.is_directory else "File"),
+            "Disc path: {}".format(entry.path),
+        ]
+        if entry.is_file:
+            lines.extend([
+                "Disc offset: 0x{:08X}".format(entry.offset or 0),
+                "Original size: {:,} bytes".format(entry.size or 0),
+            ])
+            if staged_path:
+                lines.extend([
+                    "Replacement: {}".format(Path(staged_path).name),
+                    "Staged size: {:,} bytes".format(Path(staged_path).stat().st_size),
+                    "Status: replacement staged (source ISO unchanged)",
+                ])
+        else:
+            lines.append("Children: {}".format(len(self.iso.children_of(entry.index))))
+        self.set_text(self.disc_details, "\n".join(lines))
+        is_file = entry.is_file
+        is_dat = is_file and entry.name.casefold().endswith((".dat", ".usd", ".0at", ".1at", ".2at", ".3at", ".4at", ".5at", ".6at", ".7at", ".8at", ".9at"))
+        self._set_disc_buttons(is_file, is_file, bool(is_dat), bool(is_dat))
+        self.status.set("Selected {}".format(entry.path))
+
+    def _set_disc_buttons(self, export: bool, import_file: bool, browse: bool, analyze: bool):
+        self.export_button.configure(state="normal" if export else "disabled")
+        self.import_button.configure(state="normal" if import_file else "disabled")
+        self.browse_button.configure(state="normal" if browse else "disabled")
+        self.analyze_button.configure(state="normal" if analyze else "disabled")
+
+    def _show_disc_overview(self):
+        if not self.iso:
+            self.set_text(self.disc_details, "Open a Melee/GameCube ISO to browse the disc's folder and file structure.")
+            return
+        self.set_text(
+            self.disc_details,
+            "{}\n{} files and {} folders\n\nSelect a file or folder to export it. "
+            "Select a DAT/USD file to import a replacement, browse its DAT data, or analyze its structure.\n\n"
+            "Import changes are staged separately. The original ISO is never modified.".format(
+                self.iso.game_id, self.iso.file_count, self.iso.directory_count
+            )
+        )
+
+    def on_disc_double_click(self, event):
+        if not self.iso:
+            return
+        iid = self.disc_tree.identify_row(event.y)
+        if not iid:
+            return
+        entry = self._entry_from_iid(iid)
+        if entry and entry.is_file and entry.name.casefold().endswith((".dat", ".usd")):
+            self.browse_textures()
+
+    # ------------------------------------------------------- Melee quick links
+    def disc_quick_link(self, category: str):
+        if not self.iso:
+            messagebox.showinfo("Open a Melee ISO", "Open a GameCube ISO first.", parent=self.root)
+            return
+        def matches(entry: FstEntry) -> bool:
+            if not entry.is_file:
+                return False
+            name = entry.name.casefold()
+            path = entry.path.casefold()
+            if category == "system":
+                return name in {"boot.bin", "bi2.bin", "apploader.img", "apploader.ldr", "start.dol", "game.toc", "iso.hdr"} or "/sys/" in path
+            if category == "characters":
+                return name.startswith("pl") and name.endswith((".dat", ".usd", ".lat", ".rat"))
+            if category == "menus":
+                return name.startswith(("mn", "sdmenu", "menu")) and name.endswith((".dat", ".usd"))
+            if category == "stages":
+                return name.startswith(("gr", "grp")) and name.endswith((".dat", ".usd"))
+            return False
+        candidates = [entry for entry in self.iso.entries if matches(entry)]
+        if not candidates:
+            messagebox.showinfo("No matching Melee files", "No {} files were found in this image.".format(category), parent=self.root)
+            return
+        self._reveal_entry(candidates[0])
+        self.status.set("{} shortcut: {} matching files".format(category.title(), len(candidates)))
+
+    def _reveal_entry(self, entry: FstEntry):
+        if not self.iso:
+            return
+        chain = []
+        parent = entry.parent_index
+        while parent > 0:
+            chain.append(parent)
+            parent = self.iso.get_entry(parent).parent_index
+        self._populate_disc_directory(0)
+        parent_iid = "disc-root"
+        for directory_index in reversed(chain):
+            iid = self._entry_iid(directory_index)
+            self.disc_tree.item(parent_iid, open=True)
+            self._remove_disc_pending(parent_iid)
+            self._populate_disc_directory(0 if parent_iid == "disc-root" else int(parent_iid.rsplit("-", 1)[1]))
+            if not self.disc_tree.exists(iid):
+                return
+            self.disc_tree.item(iid, open=True)
+            self._remove_disc_pending(iid)
+            self._populate_disc_directory(directory_index)
+            parent_iid = iid
+        target_iid = self._entry_iid(entry.index)
+        if self.disc_tree.exists(target_iid):
+            self.disc_tree.selection_set(target_iid)
+            self.disc_tree.focus(target_iid)
+            self.disc_tree.see(target_iid)
+
+    def focus_search(self):
+        self.search_entry.focus_set()
+        self.search_entry.select_range(0, "end")
+
+    def search_disc_next(self):
+        if not self.iso:
+            return
+        query = self.query.get().strip()
+        if not query:
+            return
+        matches = self.iso.find(query)
+        if not matches:
+            self.status.set("No disc path matches '{}'".format(query))
+            return
+        self.search_hits = [entry.index for entry in matches]
+        self.search_index = (self.search_index + 1) % len(self.search_hits)
+        self._reveal_entry(self.iso.get_entry(self.search_hits[self.search_index]))
+        self.status.set("Disc search {}/{}: {}".format(self.search_index + 1, len(matches), matches[self.search_index].path))
+
+    # --------------------------------------------------------- import / export
+    def export_selected(self):
+        if not self.iso or not self.selected_disc_entry:
+            return
+        entry = self.selected_disc_entry
+        try:
+            if entry.is_file:
+                destination = filedialog.asksaveasfilename(
+                    title="Export selected disc file",
+                    initialfile=entry.name,
+                    defaultextension=Path(entry.name).suffix,
+                    filetypes=[("Same file type", "*" + Path(entry.name).suffix), ("All files", "*.*")],
+                )
+                if not destination:
+                    return
+                data = self.iso.read_file(entry.index, self.staged)
+                Path(destination).write_bytes(data)
+                self.status.set("Exported {} ({:,} bytes)".format(entry.path, len(data)))
+            else:
+                directory = filedialog.askdirectory(title="Export selected disc folder")
+                if not directory:
+                    return
+                prefix = entry.path + "/"
+                exported = 0
+                for child in self.iso.entries:
+                    if not child.is_file or not child.path.startswith(prefix):
+                        continue
+                    relative = child.path[len(prefix):]
+                    target = Path(directory).joinpath(*relative.split("/"))
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(self.iso.read_file(child.index, self.staged))
+                    exported += 1
+                self.status.set("Exported {} files from {}".format(exported, entry.path))
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("Export failed", str(exc), parent=self.root)
+
+    def import_replacement(self):
+        if not self.iso or not self.selected_disc_entry or not self.selected_disc_entry.is_file:
+            return
+        entry = self.selected_disc_entry
+        source = filedialog.askopenfilename(
+            title="Choose a replacement for {}".format(entry.name),
+            filetypes=[
+                ("Matching file type", "*" + Path(entry.name).suffix),
+                ("All files", "*.*"),
+            ],
+        )
+        if not source:
+            return
+        try:
+            staged_info = self.iso.stage_replacement(entry.index, source)
+        except (OSError, ReplacementError) as exc:
+            messagebox.showerror("Cannot stage replacement", str(exc), parent=self.root)
+            return
+        self.staged[entry.index] = str(Path(source).resolve())
+        iid = self._entry_iid(entry.index)
+        if self.disc_tree.exists(iid):
+            self.disc_tree.item(iid, tags=("changed",), values=(
+                "File", self._format_size(int(staged_info["new_size"])), "0x{:08X}".format(entry.offset or 0)
+            ))
+        self._update_staged_controls()
+        self.on_disc_select(None)
+        self.status.set("Replacement staged for {} — source ISO not changed".format(entry.path))
+        messagebox.showinfo(
+            "Replacement staged",
+            "{}\n\nOriginal size: {:,} bytes\nReplacement size: {:,} bytes\nSafe available range: {:,} bytes\n\n"
+            "Use Save Patched ISO As… to create a verified copy. The source ISO will remain untouched.".format(
+                entry.path, int(staged_info["old_size"]), int(staged_info["new_size"]), int(staged_info["capacity"])
+            ),
+            parent=self.root,
+        )
+
+    def _update_staged_controls(self):
+        state = "normal" if self.iso and self.staged else "disabled"
+        self.save_copy_button.configure(state=state)
+        self.file_menu.entryconfigure(4, state=state)
+        self.staged_label.configure(
+            text="{} staged replacement(s)".format(len(self.staged)) if self.staged else "No staged replacements"
+        )
+
+    def save_patched_iso(self):
+        if not self.iso or not self.staged:
+            return
+        original = self.iso.path
+        stem = original.stem
+        ext = original.suffix or ".iso"
+        destination = filedialog.asksaveasfilename(
+            title="Save patched GameCube ISO copy",
+            initialdir=str(original.parent),
+            initialfile=stem + "-patched" + ext,
+            defaultextension=ext,
+            filetypes=[("GameCube images", "*.iso *.gcm"), ("All files", "*.*")],
+        )
+        if not destination:
+            return
+        target = Path(destination).expanduser().resolve()
+        overwrite = target.exists()
+        if overwrite and not messagebox.askyesno(
+            "Replace existing output?",
+            "The output file already exists. Replace it?\n\n{}".format(target),
+            parent=self.root,
+        ):
+            return
+        try:
+            result = self.iso.save_patched_copy(target, self.staged, overwrite=overwrite)
+        except (OSError, ReplacementError, GameCubeFormatError, ValueError) as exc:
+            messagebox.showerror("Could not save patched ISO", str(exc), parent=self.root)
+            return
+        messagebox.showinfo(
+            "Patched ISO saved and verified",
+            "Created: {}\nGame ID: {}\nSize: {:,} bytes\nFiles replaced: {}\n\n"
+            "The original ISO was not modified.".format(
+                result["destination"], result["game_id"], result["size"], len(result["replacements"])
+            ),
+            parent=self.root,
+        )
+        self.load_iso(str(target))
+
+    # --------------------------------------------------------------- DAT loads
+    def _selected_dat_bytes(self) -> tuple[bytes, str, str] | None:
+        if not self.iso or not self.selected_disc_entry or not self.selected_disc_entry.is_file:
+            return None
+        entry = self.selected_disc_entry
+        try:
+            data = self.iso.read_file(entry.index, self.staged)
+        except OSError as exc:
+            messagebox.showerror("Unable to read disc file", str(exc), parent=self.root)
+            return None
+        return data, entry.name, entry.path
+
+    def browse_textures(self):
+        selected = self._selected_dat_bytes()
+        if not selected:
+            return
+        data, name, disc_path = selected
+        if not self.load_dat_bytes(data, name, disc_path):
+            return
+        self.tabs.select(self.texture_tab)
+        self.status.set("DAT loaded from disc. Texture decoding is the next milestone.")
+
+    def analyze_structure(self):
+        selected = self._selected_dat_bytes()
+        if not selected:
+            return
+        data, name, disc_path = selected
+        if not self.load_dat_bytes(data, name, disc_path):
+            return
+        self.tabs.select(self.sa_tab)
+
+    # -------------------------------------------------------- structure browser
     def insert_record(self, parent: str, record: TreeRecord, offset_text: str | None = None, cycle: bool = False):
-        assert self.model
+        assert self.dat_model
         if offset_text is None:
-            offset_text = "" if record.offset is None else "0x{:X}".format(self.model.absolute_offset(record.offset))
+            offset_text = "" if record.offset is None else "0x{:X}".format(self.dat_model.absolute_offset(record.offset))
         tags = ("cycle",) if cycle else (("table",) if record.kind in {"root_table", "reference_table", "relocation_table", "string_table"} else ())
         self.tree.insert(parent, "end", iid=record.iid, text=record.text, values=(offset_text,), tags=tags)
         self.records[record.iid] = record
-        if record.kind == "structure" and not cycle and self.model.direct_children(record.offset or 0, record.type_hint):
+        if record.kind == "structure" and not cycle and self.dat_model.direct_children(record.offset or 0, record.type_hint):
             self.tree.insert(record.iid, "end", iid=record.iid + "/__pending__", text="", values=("",))
 
     def on_tree_open(self, _event):
+        if not self.dat_model:
+            return
         iid = self.tree.focus()
-        if not self.model or not iid or iid in self.loaded:
+        if not iid or iid in self.loaded:
             return
         record = self.records.get(iid)
         if not record:
@@ -204,16 +706,16 @@ class DatTextureWizardPreview:
                 self.tree.delete(child)
 
     def populate_table(self, record: TreeRecord):
-        assert self.model
+        assert self.dat_model
         self.remove_pending(record.iid)
-        for child in self.model.table_children(record.kind):
+        for child in self.dat_model.table_children(record.kind):
             self.insert_record(record.iid, child)
         self.loaded.add(record.iid)
 
     def populate_structure(self, record: TreeRecord):
-        assert self.model and record.offset is not None
+        assert self.dat_model and record.offset is not None
         self.remove_pending(record.iid)
-        children = self.model.children_with_siblings(record.offset, record.type_hint, record.ancestor_offsets[:-1])
+        children = self.dat_model.children_with_siblings(record.offset, record.type_hint, record.ancestor_offsets[:-1])
         seen: set[int] = set()
         counts: dict[str, int] = {}
         for offset, type_hint, _label, is_cycle in children:
@@ -223,15 +725,15 @@ class DatTextureWizardPreview:
             key = type_hint or "Structure"
             sibling_index = counts.get(key, 0)
             counts[key] = sibling_index + 1
-            label = self.model._known_root_labels.get(offset)
-            title = self.model.structure_title(offset, type_hint, label, sibling_index)
+            label = self.dat_model._known_root_labels.get(offset)
+            title = self.dat_model.structure_title(offset, type_hint, label, sibling_index)
             iid = record.iid + "/" + str(offset)
             child = TreeRecord("structure", title, iid, offset, type_hint, label, record.ancestor_offsets + (offset,))
             self.insert_record(record.iid, child, cycle=is_cycle)
         self.loaded.add(record.iid)
 
     def on_tree_select(self, _event):
-        if not self.model:
+        if not self.dat_model:
             return
         selection = self.tree.selection()
         if not selection:
@@ -240,27 +742,27 @@ class DatTextureWizardPreview:
         if not record:
             return
         if record.kind == "file_header":
-            self.show_file_overview()
+            self._show_file_overview()
         elif record.kind == "structure":
             self.show_structure(record)
         elif record.kind == "relocation_table":
-            self.show_table("Relocation Table", self.model.rt_start, self.model.rt_count * 4,
-                            "{} 32-bit pointer-location entries".format(self.model.rt_count))
+            self.show_table("Relocation Table", self.dat_model.rt_start, self.dat_model.rt_count * 4,
+                            "{} 32-bit pointer-location entries".format(self.dat_model.rt_count))
         elif record.kind == "root_table":
-            self.show_table("Root Nodes Table", self.model.rt_end, self.model.root_count * 8,
-                            "{} root node entries".format(self.model.root_count))
+            self.show_table("Root Nodes Table", self.dat_model.rt_end, self.dat_model.root_count * 8,
+                            "{} root node entries".format(self.dat_model.root_count))
         elif record.kind == "reference_table":
-            self.show_table("Reference Nodes Table", self.model.root_nodes_end, self.model.ref_count * 8,
-                            "{} reference node entries".format(self.model.ref_count))
+            self.show_table("Reference Nodes Table", self.dat_model.root_nodes_end, self.dat_model.ref_count * 8,
+                            "{} reference node entries".format(self.dat_model.ref_count))
         elif record.kind == "string_table":
-            size = len(self.model.body) - self.model.string_table_start
-            self.show_table("String Table", self.model.string_table_start, size,
-                            "{} root/reference labels; {} bytes".format(len(self.model.root_nodes) + len(self.model.reference_nodes), size))
+            size = len(self.dat_model.body) - self.dat_model.string_table_start
+            self.show_table("String Table", self.dat_model.string_table_start, size,
+                            "{} root/reference labels; {} bytes".format(len(self.dat_model.root_nodes) + len(self.dat_model.reference_nodes), size))
 
-    def show_file_overview(self):
-        if not self.model:
+    def _show_file_overview(self):
+        if not self.dat_model:
             return
-        d = self.model.describe()
+        d = self.dat_model.describe()
         lines = [
             d["file"], "", d["path"], "",
             "File size: {:,} bytes".format(d["size"]),
@@ -278,22 +780,22 @@ class DatTextureWizardPreview:
         self.set_text(self.raw, "Select a structure or table to inspect its bytes.")
 
     def show_table(self, title: str, offset: int, length: int, description: str):
-        assert self.model
+        assert self.dat_model
         text = "{}\n\nOffset in data section: 0x{:X}\nAbsolute file offset: 0x{:X}\nLength: {:,} bytes\n\n{}".format(
-            title, offset, self.model.absolute_offset(offset), length, description)
+            title, offset, self.dat_model.absolute_offset(offset), length, description)
         self.set_text(self.properties, text)
         self.show_raw(offset, min(length, 0x300))
 
     def show_structure(self, record: TreeRecord):
-        assert self.model and record.offset is not None
+        assert self.dat_model and record.offset is not None
         offset = record.offset
-        length = self.model.structure_length(offset, record.type_hint)
-        pointers = self.model.record_pointer_details(offset, record.type_hint)
+        length = self.dat_model.structure_length(offset, record.type_hint)
+        pointers = self.dat_model.record_pointer_details(offset, record.type_hint)
         lines = [
             record.text,
             "Type: {}".format(record.type_hint or "Unidentified HSD structure"),
             "Data-relative offset: 0x{:X}".format(offset),
-            "Absolute file offset: 0x{:X}".format(self.model.absolute_offset(offset)),
+            "Absolute file offset: 0x{:X}".format(self.dat_model.absolute_offset(offset)),
             "Inferred span: 0x{:X} ({} bytes)".format(length, length),
             "Pointer fields in span: {}".format(len(pointers)),
         ]
@@ -311,8 +813,8 @@ class DatTextureWizardPreview:
         self.show_raw(offset, min(max(length, 0x40), 0x180))
 
     def show_raw(self, offset: int, length: int):
-        assert self.model
-        data = self.model.read_bytes(offset, length)
+        assert self.dat_model
+        data = self.dat_model.read_bytes(offset, length)
         rows = []
         for start in range(0, len(data), 16):
             chunk = data[start:start + 16]
@@ -321,48 +823,22 @@ class DatTextureWizardPreview:
             rows.append("{:08X}  {:47s}  {}".format(offset + start, hex_part, ascii_part))
         self.set_text(self.raw, "\n".join(rows) if rows else "No data available.")
 
-    def focus_search(self):
-        self.search_entry.focus_set()
-        self.search_entry.select_range(0, "end")
-
-    def search_next(self):
-        if not self.model:
-            return
-        query = self.query.get().strip().lower()
-        if not query:
-            return
-        hits = []
-        for iid, record in self.records.items():
-            value = "{} {} 0x{:X}".format(record.text, record.label or "", record.offset or 0).lower()
-            if query in value:
-                hits.append(iid)
-        if not hits:
-            self.status.set("No visible match — expand branches to make deeper structures searchable.")
-            return
-        index = (getattr(self, "search_index", -1) + 1) % len(hits)
-        self.search_index = index
-        iid = hits[index]
-        self.tree.selection_set(iid)
-        self.tree.focus(iid)
-        self.tree.see(iid)
-        self.status.set("Match {}/{}: {}".format(index + 1, len(hits), self.records[iid].text))
-
     def show_about(self):
         messagebox.showinfo(
             "About",
-            "DAT Texture Wizard — Linux GUI Preview\n\n"
-            "Native Tk prototype for the linux-port branch.\n"
-            "Expandable HSD navigation is read-only in this milestone.",
+            "DAT Texture Wizard — Linux Preview\n\n"
+            "Melee-oriented GameCube file browser with safe file export and staged replacement.\n"
+            "DAT navigation is read-only; texture decoding and full ISO relocation are still in development.",
             parent=self.root,
         )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="DAT Texture Wizard native Linux GUI preview")
-    parser.add_argument("dat_file", nargs="?", help="Optional DAT file to open at startup")
+    parser.add_argument("disc_or_dat", nargs="?", help="Optional ISO/GCM/DAT file to open at startup")
     args = parser.parse_args(argv)
     root = tk.Tk()
-    DatTextureWizardPreview(root, args.dat_file)
+    DatTextureWizardPreview(root, args.disc_or_dat)
     root.mainloop()
     return 0
 
