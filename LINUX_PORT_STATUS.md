@@ -336,3 +336,20 @@ Automated validation:
 The actual 713 MB TM-CE ISO has not yet been run through the new rebuild on
 Nobara. The user should test that local image next; it is not part of the
 repository or CI fixtures.
+
+
+
+## Native Melee tree labels and stage grouping — 2026-11-05
+
+- Added an expandable virtual **Stages** branch with per-stage groups and
+  separate **Target Tests**, **1P Mode**, and **Other Stage Files** categories.
+- Added a description column based on the upstream DTW v6.1.4 character,
+  costume-color, stage-name, special-stage, and miscellaneous-file lookups.
+  Example: `PlFxGr.dat` is labeled **Fox's green costume**.
+- Character/stage file leaves still resolve to their original FST entries;
+  these views do not rename or add anything to the ISO.
+- Added tests for character labels, stage labels, special variants, grouping,
+  and preservation of the original FST entries. The foundation check now
+  compiles both new modules and runs these tests.
+- Dynamic 20XX Random Neutrals names read from live CSS data are not yet
+  resolved; the static stage lookup remains the fallback.
