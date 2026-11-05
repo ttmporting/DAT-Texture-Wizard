@@ -1,9 +1,9 @@
-"""GameCube ISO FST reader and safe copy-on-write file replacement.
+"""GameCube ISO FST reader, file export, and verified copy-on-write rebuilds.
 
-This module is intentionally conservative: it never modifies the source ISO.
-Replacement files are staged, then written to a new ISO copy only when their
-new byte range fits before the next occupied file/FST region. Full relocation
-and FST rebuilding are not implemented yet.
+The source image is never modified. Rebuilds preserve the boot/BI2/apploader/DOL
+prefix, write a relocated FST, then repack all FST files in directory-table
+order with aligned data extents. The rebuilt image is reopened and verified
+before its temporary file is atomically renamed to the requested destination.
 """
 from __future__ import annotations
 
@@ -233,7 +233,8 @@ class GameCubeIso:
             )
         return max(0, allocation_end - entry.offset)
 
-    def stage_replacement(self, index: int, replacement_path: str | Path) -> dict[str, object]:
+    def validate_replacement(self, index: int, replacement_path: str | Path) -> dict[str, object]:
+        """Validate a replacement file's basic identity without imposing size limits."""
         entry = self.get_entry(index)
         candidate = Path(replacement_path).expanduser().resolve()
         if not entry.is_file:
@@ -248,24 +249,36 @@ class GameCubeIso:
                     source_suffix, replacement_suffix or "(no extension)"
                 )
             )
-        new_size = candidate.stat().st_size
-        capacity = self.replacement_capacity(index)
-        if new_size > capacity:
-            raise ReplacementError(
-                "Replacement is {:,} bytes, but only {:,} bytes are safely available "
-                "before the next disc file/FST. Full ISO relocation is not implemented yet.".format(
-                    new_size, capacity
-                )
-            )
         return {
             "entry_index": index,
             "disc_path": entry.path,
             "replacement_path": str(candidate),
             "old_size": entry.size,
-            "new_size": new_size,
-            "capacity": capacity,
+            "new_size": candidate.stat().st_size,
+            "capacity": None,
             "sha256": self.sha256_file(candidate),
         }
+
+    def stage_replacement_for_rebuild(
+        self, index: int, replacement_path: str | Path
+    ) -> dict[str, object]:
+        """Stage any valid-size replacement; the full rebuild repacks every file."""
+        info = self.validate_replacement(index, replacement_path)
+        info["capacity"] = self.replacement_capacity(index)
+        return info
+
+    def stage_replacement(self, index: int, replacement_path: str | Path) -> dict[str, object]:
+        """Stage a replacement only if its current allocation is large enough."""
+        info = self.validate_replacement(index, replacement_path)
+        capacity = self.replacement_capacity(index)
+        if int(info["new_size"]) > capacity:
+            raise ReplacementError(
+                "Replacement is {:,} bytes, but only {:,} bytes are available in the "
+                "current allocation. Use stage_replacement_for_rebuild() to queue it "
+                "for a full ISO rebuild.".format(int(info["new_size"]), capacity)
+            )
+        info["capacity"] = capacity
+        return info
 
     @staticmethod
     def sha256_file(path: str | Path) -> str:
@@ -274,6 +287,198 @@ class GameCubeIso:
             for block in iter(lambda: source.read(1024 * 1024), b""):
                 digest.update(block)
         return digest.hexdigest()
+
+
+    @staticmethod
+    def _dol_size_from_header(dol_header: bytes) -> int:
+        """Return DOL byte length using its 7 text and 11 data section tables."""
+        if len(dol_header) < 0x100:
+            raise GameCubeFormatError("DOL header is truncated.")
+        offsets = struct.unpack_from(">18I", dol_header, 0x00)
+        sizes = struct.unpack_from(">18I", dol_header, 0x90)
+        ends = [0x100]
+        for section_offset, section_size in zip(offsets, sizes):
+            if section_size == 0:
+                continue
+            if section_offset < 0x100:
+                raise GameCubeFormatError("DOL section points inside its 0x100-byte header.")
+            ends.append(section_offset + section_size)
+        return max(ends)
+
+    def _system_region_end(self) -> int:
+        if not self.dol_offset:
+            raise GameCubeFormatError("Boot header has no DOL offset; full ISO rebuild is unsafe.")
+        with self.path.open("rb") as source:
+            source.seek(self.dol_offset)
+            dol_header = source.read(0x100)
+        dol_size = self._dol_size_from_header(dol_header)
+        dol_end = self.dol_offset + dol_size
+        if dol_end > self.iso_size:
+            raise GameCubeFormatError("DOL extent runs beyond the source image.")
+        if dol_end > self.fst_offset:
+            raise GameCubeFormatError("DOL overlaps the current FST; refusing to rebuild this image.")
+        return max(0x440, dol_end)
+
+    @staticmethod
+    def _align(value: int, alignment: int = 0x20) -> int:
+        return (value + alignment - 1) & ~(alignment - 1)
+
+    @staticmethod
+    def _copy_and_hash(source, destination, length: int, chunk_size: int = 1024 * 1024) -> str:
+        digest = hashlib.sha256()
+        remaining = length
+        while remaining:
+            block = source.read(min(chunk_size, remaining))
+            if not block:
+                raise OSError("Unexpected end of file while copying ISO content.")
+            destination.write(block)
+            digest.update(block)
+            remaining -= len(block)
+        return digest.hexdigest()
+
+    def rebuild_patched_copy(
+        self,
+        destination: str | Path,
+        staged: Mapping[int, str | Path],
+        overwrite: bool = False,
+    ) -> dict[str, object]:
+        """Repack every FST file and relocate the FST into a new, verified ISO copy.
+
+        The original boot block, BI2, apploader, and DOL remain at their original
+        offsets. The updated FST follows the DOL; all FST files are repacked at
+        0x20-byte boundaries after the FST. File names, directory entries, and
+        the string table are retained byte-for-byte.
+        """
+        dest = Path(destination).expanduser().resolve()
+        if dest == self.path:
+            raise ReplacementError("Choose a new output path; the source ISO is never overwritten.")
+        if not staged:
+            raise ReplacementError("There are no staged file replacements.")
+        if dest.exists() and not overwrite:
+            raise FileExistsError(str(dest))
+        dest.parent.mkdir(parents=True, exist_ok=True)
+
+        staged_paths: dict[int, Path] = {}
+        for index, source_path in staged.items():
+            info = self.validate_replacement(index, source_path)
+            staged_paths[index] = Path(str(info["replacement_path"]))
+
+        system_end = self._system_region_end()
+        new_fst_offset = self._align(system_end)
+        new_fst = bytearray(self.fst)
+        fst_entry_count = len(self.entries)
+        if len(new_fst) < fst_entry_count * FST_ENTRY_SIZE:
+            raise GameCubeFormatError("FST entry table is shorter than its declared entry count.")
+
+        file_layout: list[tuple[FstEntry, int, int, Path | None]] = []
+        cursor = self._align(new_fst_offset + len(new_fst))
+        for entry in self.entries:
+            if not entry.is_file:
+                continue
+            replacement_path = staged_paths.get(entry.index)
+            file_size = replacement_path.stat().st_size if replacement_path else int(entry.size or 0)
+            if entry.offset is None:
+                raise GameCubeFormatError("File {} has no source offset.".format(entry.path))
+            # A FST entry for the boot DOL is rare, but if present it must keep
+            # the same offset because the boot header still points to it.
+            is_boot_dol = entry.offset == self.dol_offset and entry.name.casefold() == "start.dol"
+            if is_boot_dol and replacement_path:
+                raise ReplacementError("Replacing start.dol is not supported by this safe rebuild.")
+            if is_boot_dol:
+                new_offset = entry.offset
+            else:
+                new_offset = cursor
+                cursor = self._align(cursor + file_size)
+            if new_offset > 0xFFFFFFFF or file_size > 0xFFFFFFFF or new_offset + file_size > 0x100000000:
+                raise ReplacementError("Rebuilt image exceeds GameCube's 32-bit FST offset/size limits.")
+            struct.pack_into(">II", new_fst, entry.index * FST_ENTRY_SIZE + 4, new_offset, file_size)
+            file_layout.append((entry, new_offset, file_size, replacement_path))
+
+        fst_size = len(new_fst)
+        if new_fst_offset > 0xFFFFFFFF or fst_size > 0xFFFFFFFF:
+            raise ReplacementError("Updated FST exceeds GameCube's 32-bit header limits.")
+        total_size = max(cursor, new_fst_offset + fst_size)
+        if total_size > 0x100000000:
+            raise ReplacementError("Rebuilt image would exceed the 4 GiB GameCube file-offset limit.")
+
+        fd, temp_name = tempfile.mkstemp(
+            prefix="." + dest.name + ".", suffix=".partial", dir=str(dest.parent)
+        )
+        os.close(fd)
+        temp_path = Path(temp_name)
+        result_entries: dict[str, dict[str, object]] = {}
+        try:
+            with self.path.open("rb") as original, temp_path.open("w+b") as output:
+                self._copy_and_hash(original, output, system_end)
+                if output.tell() < new_fst_offset:
+                    output.write(bytes(new_fst_offset - output.tell()))
+                output.seek(new_fst_offset)
+                output.write(new_fst)
+                for entry, new_offset, file_size, replacement_path in file_layout:
+                    output.seek(new_offset)
+                    if replacement_path:
+                        with replacement_path.open("rb") as replacement:
+                            digest = self._copy_and_hash(replacement, output, file_size)
+                    else:
+                        assert entry.offset is not None
+                        original.seek(entry.offset)
+                        digest = self._copy_and_hash(original, output, file_size)
+                    result_entries[entry.path] = {
+                        "offset": new_offset,
+                        "size": file_size,
+                        "sha256": digest,
+                        "entry_index": entry.index,
+                        "replaced": replacement_path is not None,
+                    }
+                output.truncate(total_size)
+                output.seek(0x424)
+                output.write(struct.pack(">3I", new_fst_offset, fst_size, fst_size))
+                output.flush()
+                os.fsync(output.fileno())
+
+            verified = GameCubeIso(temp_path)
+            if verified.game_id != self.game_id or len(verified.entries) != len(self.entries):
+                raise OSError("Rebuilt image header/FST identity verification failed.")
+            for entry, _new_offset, expected_size, _replacement_path in file_layout:
+                updated = verified.get_entry(entry.index)
+                expected = result_entries[entry.path]
+                if updated.path != entry.path or updated.size != expected_size:
+                    raise OSError("Rebuilt FST entry verification failed for {}.".format(entry.path))
+                with temp_path.open("rb") as source:
+                    source.seek(updated.offset or 0)
+                    digest = hashlib.sha256()
+                    remaining = expected_size
+                    while remaining:
+                        block = source.read(min(1024 * 1024, remaining))
+                        if not block:
+                            raise OSError("Rebuilt file data truncated for {}.".format(entry.path))
+                        digest.update(block)
+                        remaining -= len(block)
+                if digest.hexdigest() != expected["sha256"]:
+                    raise OSError("Rebuilt file hash verification failed for {}.".format(entry.path))
+            if verified.fst_offset != new_fst_offset or verified.fst_size != fst_size:
+                raise OSError("Rebuilt boot-header FST pointers did not verify.")
+            if dest.exists() and not overwrite:
+                raise FileExistsError(str(dest))
+            os.replace(temp_path, dest)
+            return {
+                "destination": str(dest),
+                "size": dest.stat().st_size,
+                "game_id": verified.game_id,
+                "fst_offset": verified.fst_offset,
+                "fst_size": verified.fst_size,
+                "replacements": {
+                    path: details for path, details in result_entries.items()
+                    if details["replaced"]
+                },
+                "file_count": len(file_layout),
+            }
+        except Exception:
+            try:
+                temp_path.unlink()
+            except OSError:
+                pass
+            raise
 
     def save_patched_copy(
         self,
