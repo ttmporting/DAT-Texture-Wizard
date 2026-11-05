@@ -264,7 +264,10 @@ class GameCubeIso:
     ) -> dict[str, object]:
         """Stage any valid-size replacement; the full rebuild repacks every file."""
         info = self.validate_replacement(index, replacement_path)
-        info["capacity"] = self.replacement_capacity(index)
+        try:
+            info["capacity"] = self.replacement_capacity(index)
+        except ReplacementError:
+            info["capacity"] = None
         return info
 
     def stage_replacement(self, index: int, replacement_path: str | Path) -> dict[str, object]:
