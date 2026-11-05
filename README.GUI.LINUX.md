@@ -46,6 +46,20 @@ original FST entries, so imports, exports, and rebuilds retain the true disc
 path. The original on-disc folder hierarchy remains available alongside this
 logical grouping; no directory entries are added to the ISO.
 
+The **Stages** branch is also virtual. It groups recognizable stage files into
+named stage folders, with separate **Target Tests**, **1P Mode**, and
+**Other Stage Files** categories. The original FST tree is still available,
+and each virtual file row resolves to its original ISO entry.
+
+The **Affects / Description** column uses the filename lookup conventions from
+upstream DTW v6.1.4. For example, `PlFxGr.dat` is labeled **Fox's green
+costume**, `PlFx.dat` is Fox's NTSC data/shared textures, and known stage
+files are labeled with their stage names. Known special 20XX variants are
+included. Dynamic Random Neutrals names read from a mod's live CSS data are
+not yet resolved, so those currently fall back to their base stage label.
+These are filename-based descriptions, not results from decoding the DAT's
+embedded texture pixels.
+
 The right-side actions follow the original DTW layout:
 
 - **Export** — exports a selected file, or recursively exports a selected folder.
