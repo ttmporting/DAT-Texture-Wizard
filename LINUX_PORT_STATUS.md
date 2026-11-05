@@ -237,3 +237,51 @@ material-animation structures has explicit field/sibling metadata; other
 nodes remain generic pointer structures. The GUI is read-only. It does not yet
 enumerate or decode GX textures, preview images, import/export texture data,
 save changes, or rebuild DAT files. Do not remove the main launcher guard.
+
+
+## Melee-first disc browser and file import/export — 2026-11-05
+
+The native GUI now opens to the GameCube disc browser, with a Melee-first
+presentation for known Melee game IDs (including the custom `GTME01` ID used
+by the supplied TM-CE image). The left pane browses the disc FST in expandable
+directory order. Quick links target System, Characters, Menus, and Stages.
+The right pane exposes Export, Import, Browse Textures, and Analyze Structure.
+
+Implemented:
+- `dtw_gamecube.py` reads the GameCube boot header and FST, validates entry
+  bounds, resolves file paths by directory next-index preorder ranges, and
+  reports mismatched declared directory-parent indices. This preorder handling
+  is deliberate: the user's TM-CE image had a directory whose parent-index
+  field pointed at a file, while Wiimm's tool could still enumerate the
+  directory from the FST nesting ranges.
+- Export of a selected file and recursive export of a selected directory.
+- Import stages a replacement for one selected disc file; the original ISO is
+  not modified.
+- Save Patched ISO As creates a new image copy, writes staged file bytes,
+  updates corresponding FST file-size fields, reopens the result, and verifies
+  replacement sizes and SHA-256 hashes before finalizing the output.
+- Replacement is rejected if it would overlap the next file/FST region, if
+  the original extent itself overlaps a following boundary, or if the file
+  extension differs. Full relocation/rebuild is not implemented.
+- Browse Textures / Analyze Structure read a selected DAT/USD from the ISO and
+  feed the existing read-only DAT navigation model. The texture tab is still a
+  placeholder: GX texture identification/decoding and texture import/export
+  are not yet enabled.
+- The first GUI tab is labeled **Melee File Tree** for known Melee game IDs and
+  **GameCube File Tree** for other GameCube discs.
+
+Automated validation:
+- 30 tests passed, including 8 GameCube ISO/FST and safe-replacement tests.
+- Python compile and shell syntax checks passed in CI.
+- CI run: [#41974689130](https://github.com/ttmporting/DAT-Texture-Wizard/actions/runs/41974689130)
+  (this run predates the final small overlap-guard and UI-label refinements;
+  a fresh run is triggered by those final commits).
+
+Important limits:
+- The real user ISO was not available in the CI runner, so this FST browser has
+  been tested using synthetic GameCube images. The user should test it against
+  their local `TM-CE - Rebuilt, v1.iso` next.
+- This is safe file-level replacement when space permits, not the original
+  DTW's complete disc rebuild feature. Custom DAT files larger than available
+  slack are rejected until a fully tested ISO relocation/FST rebuild exists.
+- The application is still not ready to run as a complete Linux texture editor.
