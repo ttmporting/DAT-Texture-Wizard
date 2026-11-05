@@ -25,6 +25,7 @@ class CharacterTreeTests(unittest.TestCase):
             make_entry(10, "PlFx.dat"),
             make_entry(11, "PlFxGr.dat"),
             make_entry(12, "PlFxGr.usd"),
+            make_entry(14, "PlFx.0at"),
         ]
         other = make_entry(13, "PlCa.dat")
         groups = build_character_groups([*fox_files, other])
@@ -36,6 +37,7 @@ class CharacterTreeTests(unittest.TestCase):
             "GTME01/P-GTME/files/PlFx.dat",
             "GTME01/P-GTME/files/PlFxGr.dat",
             "GTME01/P-GTME/files/PlFxGr.usd",
+            "GTME01/P-GTME/files/PlFx.0at",
         ])
 
     def test_groups_cover_melee_character_identifiers(self):
