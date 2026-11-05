@@ -20,6 +20,7 @@ CHARACTER_NAMES = {
     "CL": "Young Link",
     "DK": "Donkey Kong",
     "DR": "Dr. Mario",
+    "DD": "Diddy",
     "FC": "Falco",
     "FE": "Roy",
     "FX": "Fox",
@@ -30,7 +31,9 @@ CHARACTER_NAMES = {
     "IC": "Ice Climbers",
     "KB": "Kirby",
     "KP": "Bowser",
+    "LC": "Lucas",
     "LG": "Luigi",
+    "LZ": "Charizard",
     "LK": "Link",
     "MH": "Master Hand",
     "MR": "Mario",
@@ -46,11 +49,12 @@ CHARACTER_NAMES = {
     "SB": "Sandbag",
     "SK": "Sheik",
     "SS": "Samus",
+    "WF": "Wolf",
     "YS": "Yoshi",
     "ZD": "Zelda",
 }
 # Popo and Nana are separate fighter codes but belong in one Ice Climbers folder.
-CODE_ALIASES = {"NN": "IC", "PP": "IC"}
+CODE_ALIASES = {"NN": "IC", "PN": "IC", "PP": "IC"}
 
 CHARACTER_FILE_SUFFIXES = {".dat", ".usd", ".lat", ".rat"}
 _CHARACTER_PREFIX = re.compile(r"^Pl([A-Z]{2})(?=[A-Z0-9_-]*$)", re.IGNORECASE)
