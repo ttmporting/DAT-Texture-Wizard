@@ -39,6 +39,13 @@ The first tab is the main starting point, with quick links for System,
 Characters, Menus, and Stages. Expand folders to browse the image's FST; it
 does not load the full disc into memory.
 
+The **Characters** branch is a presentation-only view that groups Melee
+`PlXX…` character DAT/USD files under expandable fighter folders (for example,
+all `PlFx…` files appear under **Fox**). Individual leaves resolve to their
+original FST entries, so imports, exports, and rebuilds retain the true disc
+path. The original on-disc folder hierarchy remains available alongside this
+logical grouping; no directory entries are added to the ISO.
+
 The right-side actions follow the original DTW layout:
 
 - **Export** — exports a selected file, or recursively exports a selected folder.
