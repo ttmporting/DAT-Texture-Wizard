@@ -273,9 +273,9 @@ Implemented:
 Automated validation:
 - 30 tests passed, including 8 GameCube ISO/FST and safe-replacement tests.
 - Python compile and shell syntax checks passed in CI.
-- CI run: [#41974689130](https://github.com/ttmporting/DAT-Texture-Wizard/actions/runs/41974689130)
-  (this run predates the final small overlap-guard and UI-label refinements;
-  a fresh run is triggered by those final commits).
+- Final CI run: [#41974935898](https://github.com/ttmporting/DAT-Texture-Wizard/actions/runs/41974935898)
+  completed successfully after the overlap-guard and UI-label refinements. All
+  30 tests passed, and Python compile / shell validation passed.
 
 Important limits:
 - The real user ISO was not available in the CI runner, so this FST browser has
