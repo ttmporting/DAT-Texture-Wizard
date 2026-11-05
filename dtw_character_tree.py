@@ -73,7 +73,7 @@ def character_code_for_entry(entry: FstEntry) -> str | None:
     """
     if not entry.is_file or PurePosixPath(entry.name).suffix.casefold() not in CHARACTER_FILE_SUFFIXES:
         return None
-    match = _CHARACTER_PREFIX.match(entry.name)
+    match = _CHARACTER_PREFIX.match(PurePosixPath(entry.name).stem)
     if not match:
         return None
     raw_code = match.group(1).upper()
