@@ -164,7 +164,7 @@ MISC_FILE_NAMES = {
     "LBMCSNAP": "Memory card snapshot banner/icon",
     "MXDT": "m-ex metadata and helper functions",
     "MNEXTALL": "Extra menu graphics for the CSS",
-    "MNM AALL": "Main menu graphics file",
+    "MNMAALL": "Main menu graphics file",
     "MNSLCHR": "Character Select Screen",
     "MNSLMAP": "Stage Select Screen",
     "NTAPPRO": "'New Challenger' Screens",
@@ -184,7 +184,7 @@ def character_description(filename: str, is_20xx: bool = False) -> str | None:
         return "Character data"
     character = CHARACTER_FILE_NAMES.get(stem[2:4].upper(), "Unknown Character")
     prefix = character + ("' " if character.endswith("s") else "'s ")
-    color_key = stem[4:6].upper()
+    color_key = name[4:6].upper()
     ext = PurePosixPath(name).suffix.casefold()
     if color_key == ".D":
         description = prefix + "NTSC data & shared textures"
@@ -224,7 +224,7 @@ def stage_description(filename: str) -> str | None:
     variant = SPECIAL_STAGE_VARIANTS.get(key)
     if variant:
         return variant
-    code = stem[2:5].upper()
+    code = name[2:5].upper()
     if len(stem) >= 5 and stem[2:3].upper() == "T":
         char = CHARACTER_FILE_NAMES.get(stem[3:5].upper())
         if char:
