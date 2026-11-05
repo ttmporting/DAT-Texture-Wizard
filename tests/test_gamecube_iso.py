@@ -141,7 +141,11 @@ class GameCubeIsoTests(unittest.TestCase):
         self.assertEqual(rebuilt.get_entry(1).path, "GTME01/opening.bnr")
         self.assertEqual(rebuilt.get_entry(4).path, "GTME01/P-GTME/files/PlFxGr.dat")
         self.assertEqual(rebuilt.parent_mismatches, [])
-        self.assertEqual(destination.read_bytes()[:0x704], self.original[:0x704])
+        rebuilt_bytes = destination.read_bytes()
+        self.assertEqual(rebuilt_bytes[:0x424], self.original[:0x424])
+        self.assertEqual(rebuilt_bytes[0x430:0x704], self.original[0x430:0x704])
+        self.assertEqual(struct.unpack_from(">3I", rebuilt_bytes, 0x424),
+                         (rebuilt.fst_offset, rebuilt.fst_size, rebuilt.fst_max_size))
         self.assertEqual(rebuilt.read_file(1), b"BNR00")
         self.assertEqual(rebuilt.read_file(4), b"X" * 0x500)
 
