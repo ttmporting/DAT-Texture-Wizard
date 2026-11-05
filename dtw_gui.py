@@ -608,7 +608,7 @@ class DatTextureWizardPreview:
             file_count = sum(len(group.entries) for group in self.character_groups.values())
             self.set_text(
                 self.disc_details,
-                "Characters\\nType: Virtual folder\\nCharacter folders: {}\\nCharacter files: {}\\n\\n"
+                "Characters\nType: Virtual folder\nCharacter folders: {}\nCharacter files: {}\n\n"
                 "Files are grouped by their Melee fighter prefix for easier browsing. "
                 "These folders are only a viewing aid; each file keeps its original disc path.".format(
                     len(self.character_groups), file_count
@@ -622,7 +622,7 @@ class DatTextureWizardPreview:
             count = sum(len(group.entries) for group in self.stage_groups.values())
             self.set_text(
                 self.disc_details,
-                "Stages\\nType: Virtual folder\\nStage groups: {}\\nStage files: {}\\n\\n"
+                "Stages\nType: Virtual folder\nStage groups: {}\nStage files: {}\n\n"
                 "Stages are grouped by their known Melee stage names. These folders are only a viewing aid; "
                 "each file retains its original disc path.".format(len(self.stage_groups), count),
             )
@@ -636,7 +636,7 @@ class DatTextureWizardPreview:
             count = sum(len(group.entries) for group in groups)
             self.set_text(
                 self.disc_details,
-                "{}\\nType: Stage category\\nStage groups: {}\\nFiles: {}\\n\\n"
+                "{}\nType: Stage category\nStage groups: {}\nFiles: {}\n\n"
                 "Expand a stage folder to select individual DAT/USD files.".format(stage_category, len(groups), count),
             )
             self._set_disc_buttons(False, False, False, False)
@@ -654,7 +654,7 @@ class DatTextureWizardPreview:
                 "Individual files keep their original disc paths:",
             ]
             lines.extend("  {} — {}".format(entry.path, disc_file_description(entry.name) or "Stage file") for entry in group.entries)
-            self.set_text(self.disc_details, "\\n".join(lines))
+            self.set_text(self.disc_details, "\n".join(lines))
             self._set_disc_buttons(False, False, False, False)
             self.status.set("{}: {} stage files".format(group.name, len(group.entries)))
             return
@@ -671,7 +671,7 @@ class DatTextureWizardPreview:
                 "Original disc paths are preserved:",
             ]
             lines.extend("  {}".format(entry.path) for entry in group.entries)
-            self.set_text(self.disc_details, "\\n".join(lines))
+            self.set_text(self.disc_details, "\n".join(lines))
             self._set_disc_buttons(False, False, False, False)
             self.status.set("{}: {} character files".format(group.name, len(group.entries)))
             return
