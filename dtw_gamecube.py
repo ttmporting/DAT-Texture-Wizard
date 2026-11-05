@@ -224,7 +224,14 @@ class GameCubeIso:
         entry = self.get_entry(index)
         if not entry.is_file or entry.offset is None:
             raise ReplacementError("Only existing files can be replaced.")
-        return max(0, self.allocation_end(index) - entry.offset)
+        allocation_end = self.allocation_end(index)
+        original_end = entry.offset + (entry.size or 0)
+        if original_end > allocation_end:
+            raise ReplacementError(
+                "The original file already overlaps the next file/FST boundary; "
+                "safe in-place replacement is disabled for this entry."
+            )
+        return max(0, allocation_end - entry.offset)
 
     def stage_replacement(self, index: int, replacement_path: str | Path) -> dict[str, object]:
         entry = self.get_entry(index)
