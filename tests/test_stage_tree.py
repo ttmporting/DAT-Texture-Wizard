@@ -37,6 +37,15 @@ class StageTreeTests(unittest.TestCase):
         self.assertEqual(goomba.category, "1P Mode")
         self.assertEqual(battlefield.category, "Stages")
 
+    def test_special_variants_remain_under_their_base_stage_folder(self):
+        groups = build_stage_groups([
+            make_entry(1, "GrIz.dat"),
+            make_entry(2, "GrIz.gat"),
+        ])
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0].name, "Fountain of Dreams [Izumi]")
+        self.assertEqual([entry.name for entry in groups[0].entries], ["GrIz.dat", "GrIz.gat"])
+
     def test_stadium_variants_share_one_group(self):
         groups = build_stage_groups([make_entry(1, "GrP2.usd"), make_entry(2, "GrP3.usd")])
         self.assertEqual(len(groups), 1)
