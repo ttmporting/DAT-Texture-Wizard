@@ -54,6 +54,23 @@ FST-listed file at 0x20-byte boundaries, updates the boot header's FST offset,
 size, and maximum-size fields, and verifies all copied/replaced file hashes.
 The source ISO is never modified.
 
+### Fox custom-skin import walkthrough
+
+To test the larger TAILS DAT against the supplied TM-CE image:
+
+1. Open `TM-CE - Rebuilt, v1.iso` in the Melee File Tree.
+2. Search for `PlFxGr.dat` and select the matching file under
+   `P-GTME/files`.
+3. Click **Import** and select `PlFxGr-TAILS.dat`.
+4. Click **Rebuild / Save ISO As…** and save under a new name, for example
+   `TM-CE - Rebuilt, v1 - TAILS.iso`.
+5. Wait for the verified rebuild to complete, then test the new image in
+   Dolphin. Keep the original ISO and original DAT as untouched backups.
+
+The rebuild copies the disc's system prefix, fixes the anomalous directory
+parent fields by rebuilding the FST hierarchy, and repacks the complete FST
+file set. Do not test by overwriting the original disc image.
+
 ### Full rebuild behavior and safety boundaries
 
 The rebuilt image retains the original boot header, BI2, apploader, and DOL
