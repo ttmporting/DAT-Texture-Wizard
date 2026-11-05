@@ -250,6 +250,7 @@ class DatTextureWizardPreview:
             self.status.set("Disc open failed")
             return
         self.iso = model
+        self.tabs.tab(self.disc_tab, text="Melee File Tree" if model.is_melee else "GameCube File Tree")
         self.staged.clear()
         self.disc_iids.clear()
         self.disc_loaded.clear()
@@ -286,7 +287,7 @@ class DatTextureWizardPreview:
 
     def load_dat_bytes(self, data: bytes, display_name: str, disc_path: str):
         try:
-            model = DatTreeModel(Path(display_name), data=data)
+            model = DatTreeModel(Path(disc_path), data=data)
         except (DatFormatError, ValueError, struct.error) as exc:
             messagebox.showerror("Unable to read DAT", "{}\n\nDisc path: {}".format(exc, disc_path), parent=self.root)
             self.status.set("DAT could not be parsed")
