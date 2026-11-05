@@ -53,7 +53,7 @@ class DatTextureWizardPreview:
         file_menu.add_command(label="Open Standalone DAT…", accelerator="Ctrl+D", command=self.open_dat)
         file_menu.add_command(label="Reload", accelerator="F5", command=self.reload_current)
         file_menu.add_separator()
-        file_menu.add_command(label="Save Patched ISO As…", command=self.save_patched_iso, state="disabled")
+        file_menu.add_command(label="Rebuild / Save ISO As…", command=self.save_patched_iso, state="disabled")
         self.save_menu_index = 4
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.root.destroy)
@@ -157,7 +157,7 @@ class DatTextureWizardPreview:
         for button in (self.export_button, self.import_button, self.browse_button, self.analyze_button):
             button.pack(fill="x", pady=4)
         ttk.Separator(right).pack(fill="x", pady=10)
-        self.save_copy_button = ttk.Button(right, text="Save Patched ISO As…", command=self.save_patched_iso, state="disabled")
+        self.save_copy_button = ttk.Button(right, text="Rebuild / Save ISO As…", command=self.save_patched_iso, state="disabled")
         self.save_copy_button.pack(fill="x", pady=4)
         self.staged_label = ttk.Label(right, text="No staged replacements", wraplength=255, foreground="#536274")
         self.staged_label.pack(anchor="w", pady=(8, 0))
@@ -577,7 +577,7 @@ class DatTextureWizardPreview:
         if not source:
             return
         try:
-            staged_info = self.iso.stage_replacement(entry.index, source)
+            staged_info = self.iso.stage_replacement_for_rebuild(entry.index, source)
         except (OSError, ReplacementError) as exc:
             messagebox.showerror("Cannot stage replacement", str(exc), parent=self.root)
             return
@@ -593,8 +593,10 @@ class DatTextureWizardPreview:
         messagebox.showinfo(
             "Replacement staged",
             "{}\n\nOriginal size: {:,} bytes\nReplacement size: {:,} bytes\nSafe available range: {:,} bytes\n\n"
-            "Use Save Patched ISO As… to create a verified copy. The source ISO will remain untouched.".format(
-                entry.path, int(staged_info["old_size"]), int(staged_info["new_size"]), int(staged_info["capacity"])
+            "Use Rebuild / Save ISO As… to create a verified copy. All files will be relocated and repacked; "
+            "the source ISO will remain untouched.".format(
+                entry.path, int(staged_info["old_size"]), int(staged_info["new_size"]),
+                (("{:,} bytes".format(int(staged_info["capacity"]))) if staged_info["capacity"] is not None else "not suitable for in-place replacement")
             ),
             parent=self.root,
         )
@@ -631,12 +633,12 @@ class DatTextureWizardPreview:
         ):
             return
         try:
-            result = self.iso.save_patched_copy(target, self.staged, overwrite=overwrite)
+            result = self.iso.rebuild_patched_copy(target, self.staged, overwrite=overwrite)
         except (OSError, ReplacementError, GameCubeFormatError, ValueError) as exc:
             messagebox.showerror("Could not save patched ISO", str(exc), parent=self.root)
             return
         messagebox.showinfo(
-            "Patched ISO saved and verified",
+            "Rebuilt ISO saved and verified",
             "Created: {}\nGame ID: {}\nSize: {:,} bytes\nFiles replaced: {}\n\n"
             "The original ISO was not modified.".format(
                 result["destination"], result["game_id"], result["size"], len(result["replacements"])
