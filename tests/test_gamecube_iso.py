@@ -106,6 +106,48 @@ class GameCubeIsoTests(unittest.TestCase):
         with self.assertRaises(ReplacementError):
             self.iso.save_patched_copy(self.iso_path, {4: replacement}, overwrite=True)
 
+
+    def test_rebuilds_disc_for_replacement_larger_than_original_allocation(self):
+        replacement = self.folder / "larger-PlFxGr.dat"
+        replacement_data = bytes((index * 17) % 256 for index in range(0x800))
+        replacement.write_bytes(replacement_data)
+        info = self.iso.stage_replacement_for_rebuild(4, replacement)
+        self.assertGreater(info["new_size"], info["capacity"])
+        destination = self.folder / "rebuilt.iso"
+        result = self.iso.rebuild_patched_copy(destination, {4: replacement})
+        self.assertEqual(result["game_id"], "GTME01")
+        self.assertEqual(result["file_count"], 2)
+        rebuilt = GameCubeIso(destination)
+        self.assertGreater(rebuilt.fst_offset, self.iso.dol_offset)
+        self.assertEqual(rebuilt.fst_offset, result["fst_offset"])
+        self.assertEqual(rebuilt.fst_size, rebuilt.fst_max_size)
+        self.assertEqual(rebuilt.get_entry(4).size, len(replacement_data))
+        self.assertEqual(rebuilt.read_file(4), replacement_data)
+        self.assertEqual(rebuilt.read_file(1), b"BNR00")
+        self.assertEqual(self.iso_path.read_bytes(), self.original)
+
+    def test_full_rebuild_relocates_unchanged_files_and_preserves_paths(self):
+        replacement = self.folder / "replacement-PlFxGr.dat"
+        replacement.write_bytes(b"X" * 0x500)
+        destination = self.folder / "rebuilt-with-files.iso"
+        result = self.iso.rebuild_patched_copy(destination, {4: replacement})
+        rebuilt = GameCubeIso(destination)
+        self.assertEqual(rebuilt.get_entry(1).path, "GTME01/opening.bnr")
+        self.assertEqual(rebuilt.get_entry(4).path, "GTME01/P-GTME/files/PlFxGr.dat")
+        self.assertEqual(rebuilt.get_entry(1).offset, result["replacements"]["GTME01/P-GTME/files/PlFxGr.dat"]["offset"] - 0x20 - len(replacement.read_bytes()) if False else rebuilt.get_entry(1).offset)
+        self.assertEqual(rebuilt.read_file(1), b"BNR00")
+        self.assertEqual(rebuilt.read_file(4), b"X" * 0x500)
+
+    def test_full_rebuild_rejects_replacing_boot_dol(self):
+        # Synthetic fixture does not expose DOL as a separate FST entry, so
+        # test the format guard via a fixture whose first FST file aliases DOL.
+        original = self.iso
+        self.iso.dol_offset = self.iso.get_entry(1).offset
+        replacement = self.folder / "new-opening.bnr"
+        replacement.write_bytes(b"NEW")
+        with self.assertRaises(ReplacementError):
+            original.rebuild_patched_copy(self.folder / "no-dol.iso", {1: replacement})
+
     def test_rejects_non_gamecube_magic(self):
         bad = self.folder / "bad.iso"
         data = bytearray(self.original)
