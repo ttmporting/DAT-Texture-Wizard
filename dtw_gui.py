@@ -12,6 +12,8 @@ from tkinter import filedialog, messagebox, ttk
 from dtw_dat_probe import DatFormatError
 from dtw_dat_tree import DatTreeModel, TreeRecord
 from dtw_character_tree import CharacterGroup, build_character_groups
+from dtw_disc_labels import disc_file_description
+from dtw_stage_tree import StageGroup, build_stage_groups
 from dtw_gamecube import GameCubeFormatError, GameCubeIso, ReplacementError, FstEntry
 
 
@@ -32,6 +34,18 @@ class DatTextureWizardPreview:
         self.character_file_iids: dict[int, str] = {}
         self.character_tree_loaded = False
         self.character_group_loaded: set[str] = set()
+        self.stage_groups: dict[str, StageGroup] = {}
+        self.stage_root_iid: str | None = None
+        self.stage_categories: dict[str, list[StageGroup]] = {}
+        self.stage_category_iids: dict[str, str] = {}
+        self.stage_category_by_iid: dict[str, str] = {}
+        self.stage_group_iids: dict[str, str] = {}
+        self.stage_group_key_by_iid: dict[str, str] = {}
+        self.stage_file_entries: dict[str, FstEntry] = {}
+        self.stage_file_iids: dict[int, str] = {}
+        self.stage_tree_loaded = False
+        self.stage_category_loaded: set[str] = set()
+        self.stage_group_loaded: set[str] = set()
         self.staged: dict[int, str] = {}
         self.selected_disc_entry: FstEntry | None = None
         self.search_hits: list[int] = []
@@ -134,16 +148,16 @@ class DatTextureWizardPreview:
             ttk.Button(shortcuts, text=label, width=11, command=lambda value=key: self.disc_quick_link(value)).pack(side="left", padx=2)
 
         self.disc_tree = ttk.Treeview(
-            left, columns=("kind", "size", "offset"), show="tree headings", selectmode="browse"
+            left, columns=("description", "size", "offset"), show="tree headings", selectmode="browse"
         )
         self.disc_tree.heading("#0", text="Disc File Tree (FST order)", anchor="center")
-        self.disc_tree.heading("kind", text="Type", anchor="center")
+        self.disc_tree.heading("description", text="Affects / Description", anchor="center")
         self.disc_tree.heading("size", text="Size", anchor="center")
         self.disc_tree.heading("offset", text="Disc Offset", anchor="center")
-        self.disc_tree.column("#0", width=330, minwidth=220, stretch=True)
-        self.disc_tree.column("kind", width=78, minwidth=70, stretch=False, anchor="center")
-        self.disc_tree.column("size", width=110, minwidth=90, stretch=False, anchor="e")
-        self.disc_tree.column("offset", width=112, minwidth=100, stretch=False, anchor="e")
+        self.disc_tree.column("#0", width=270, minwidth=190, stretch=True)
+        self.disc_tree.column("description", width=225, minwidth=150, stretch=False)
+        self.disc_tree.column("size", width=90, minwidth=78, stretch=False, anchor="e")
+        self.disc_tree.column("offset", width=105, minwidth=95, stretch=False, anchor="e")
         dy = ttk.Scrollbar(left, orient="vertical", command=self.disc_tree.yview)
         dx = ttk.Scrollbar(left, orient="horizontal", command=self.disc_tree.xview)
         self.disc_tree.configure(yscrollcommand=dy.set, xscrollcommand=dx.set)
@@ -271,6 +285,20 @@ class DatTextureWizardPreview:
         self.character_file_iids.clear()
         self.character_tree_loaded = False
         self.character_group_loaded.clear()
+        self.stage_groups = {group.key: group for group in build_stage_groups(model.entries)}
+        self.stage_root_iid = None
+        self.stage_categories.clear()
+        self.stage_category_iids.clear()
+        self.stage_category_by_iid.clear()
+        self.stage_group_iids.clear()
+        self.stage_group_key_by_iid.clear()
+        self.stage_file_entries.clear()
+        self.stage_file_iids.clear()
+        self.stage_tree_loaded = False
+        self.stage_category_loaded.clear()
+        self.stage_group_loaded.clear()
+        for group in self.stage_groups.values():
+            self.stage_categories.setdefault(group.category, []).append(group)
         self.selected_disc_entry = None
         self.disc_tree.delete(*self.disc_tree.get_children(""))
         title = "Super Smash Bros. Melee" if model.is_melee else "GameCube Disc"
@@ -286,6 +314,16 @@ class DatTextureWizardPreview:
             )
             self.disc_tree.insert(
                 self.character_root_iid, "end", iid=self.character_root_iid + "/__pending__",
+                text="", values=("", "", ""),
+            )
+        if model.is_melee and self.stage_groups:
+            self.stage_root_iid = "disc-stages"
+            self.disc_tree.insert(
+                root_iid, "end", iid=self.stage_root_iid, text="Stages",
+                values=("Virtual stage folders", "", ""), tags=("directory",),
+            )
+            self.disc_tree.insert(
+                self.stage_root_iid, "end", iid=self.stage_root_iid + "/__pending__",
                 text="", values=("", "", ""),
             )
         self._populate_disc_directory(0)
@@ -355,6 +393,12 @@ class DatTextureWizardPreview:
     def _character_group_iid(self, code: str) -> str:
         return "disc-character-{}".format(code)
 
+    def _stage_category_iid(self, category: str) -> str:
+        return "disc-stage-category-{}".format(category.lower().replace(" ", "-"))
+
+    def _stage_group_iid(self, key: str) -> str:
+        return "disc-stage-group-{}".format(key.replace(":", "-"))
+
     def _populate_character_tree(self):
         """Create virtual character folders; their entries retain real FST paths."""
         if not self.iso or not self.character_root_iid or self.character_tree_loaded:
@@ -373,6 +417,71 @@ class DatTextureWizardPreview:
                 self.disc_tree.insert(iid, "end", iid=iid + "/__pending__", text="", values=("", "", ""))
         self.character_tree_loaded = True
 
+    def _populate_stage_tree(self):
+        """Create presentation-only stage categories and expandable subfolders."""
+        if not self.iso or not self.stage_root_iid or self.stage_tree_loaded:
+            return
+        self._remove_disc_pending(self.stage_root_iid)
+        preferred_order = ("Stages", "Target Tests", "1P Mode", "Other Stage Files")
+        categories = sorted(
+            self.stage_categories,
+            key=lambda value: (preferred_order.index(value) if value in preferred_order else 99, value.casefold()),
+        )
+        for category in categories:
+            groups = self.stage_categories[category]
+            iid = self._stage_category_iid(category)
+            self.stage_category_iids[category] = iid
+            self.stage_category_by_iid[iid] = category
+            self.disc_tree.insert(
+                self.stage_root_iid, "end", iid=iid, text=category,
+                values=("Stage category", "{} groups".format(len(groups)), ""),
+                tags=("directory",),
+            )
+            if groups:
+                self.disc_tree.insert(iid, "end", iid=iid + "/__pending__", text="", values=("", "", ""))
+        self.stage_tree_loaded = True
+
+    def _populate_stage_category(self, category: str):
+        if not self.iso or category in self.stage_category_loaded:
+            return
+        parent_iid = self.stage_category_iids.get(category)
+        if not parent_iid:
+            return
+        self._remove_disc_pending(parent_iid)
+        for group in self.stage_categories.get(category, []):
+            iid = self._stage_group_iid(group.key)
+            self.stage_group_iids[group.key] = iid
+            self.stage_group_key_by_iid[iid] = group.key
+            self.disc_tree.insert(
+                parent_iid, "end", iid=iid, text=group.name,
+                values=("Stage group", "{} files".format(len(group.entries)), ""),
+                tags=("directory",),
+            )
+            if group.entries:
+                self.disc_tree.insert(iid, "end", iid=iid + "/__pending__", text="", values=("", "", ""))
+        self.stage_category_loaded.add(category)
+
+    def _populate_stage_group(self, key: str):
+        if not self.iso or key in self.stage_group_loaded:
+            return
+        group = self.stage_groups.get(key)
+        parent_iid = self.stage_group_iids.get(key)
+        if not group or not parent_iid:
+            return
+        self._remove_disc_pending(parent_iid)
+        for entry in group.entries:
+            iid = "disc-stage-file-{}".format(entry.index)
+            self.stage_file_entries[iid] = entry
+            self.stage_file_iids[entry.index] = iid
+            description = disc_file_description(entry.name)
+            tags = ("changed",) if entry.index in self.staged else ()
+            self.disc_tree.insert(
+                parent_iid, "end", iid=iid, text=entry.name,
+                values=(description or "Stage file", self._format_size(self._effective_size(entry)), "0x{:08X}".format(entry.offset or 0)),
+                tags=tags,
+            )
+        self.stage_group_loaded.add(key)
+
     def _populate_character_group(self, code: str):
         """Add character-file aliases that resolve to their original FST entries."""
         if not self.iso or code in self.character_group_loaded:
@@ -387,9 +496,10 @@ class DatTextureWizardPreview:
             self.character_file_entries[iid] = entry
             self.character_file_iids[entry.index] = iid
             tags = ("changed",) if entry.index in self.staged else ()
+            description = disc_file_description(entry.name)
             self.disc_tree.insert(
                 parent_iid, "end", iid=iid, text=entry.name,
-                values=("File", self._format_size(self._effective_size(entry)), "0x{:08X}".format(entry.offset or 0)),
+                values=(description or "Character file", self._format_size(self._effective_size(entry)), "0x{:08X}".format(entry.offset or 0)),
                 tags=tags,
             )
         self.character_group_loaded.add(code)
@@ -411,7 +521,7 @@ class DatTextureWizardPreview:
                 tags = ("changed",) if child.index in self.staged else ()
                 self.disc_tree.insert(
                     parent_iid, "end", iid=iid, text=child.name,
-                    values=("File", self._format_size(self._effective_size(child)), "0x{:08X}".format(child.offset or 0)),
+                    values=(disc_file_description(child.name) or "File", self._format_size(self._effective_size(child)), "0x{:08X}".format(child.offset or 0)),
                     tags=tags,
                 )
         self.disc_loaded.add(directory_index)
@@ -438,6 +548,20 @@ class DatTextureWizardPreview:
             self._remove_disc_pending(iid)
             self._populate_character_tree()
             return
+        if iid == self.stage_root_iid:
+            self._remove_disc_pending(iid)
+            self._populate_stage_tree()
+            return
+        stage_category = self.stage_category_by_iid.get(iid)
+        if stage_category:
+            self._remove_disc_pending(iid)
+            self._populate_stage_category(stage_category)
+            return
+        stage_key = self.stage_group_key_by_iid.get(iid)
+        if stage_key:
+            self._remove_disc_pending(iid)
+            self._populate_stage_group(stage_key)
+            return
         character_code = self.character_group_code_by_iid.get(iid)
         if character_code:
             self._remove_disc_pending(iid)
@@ -461,6 +585,9 @@ class DatTextureWizardPreview:
         virtual_entry = self.character_file_entries.get(iid)
         if virtual_entry is not None:
             return virtual_entry
+        stage_entry = self.stage_file_entries.get(iid)
+        if stage_entry is not None:
+            return stage_entry
         if not self.iso or not iid.startswith("disc-entry-"):
             return None
         try:
@@ -489,6 +616,47 @@ class DatTextureWizardPreview:
             )
             self._set_disc_buttons(False, False, False, False)
             self.status.set("Characters: {} groups, {} files".format(len(self.character_groups), file_count))
+            return
+        if iid == self.stage_root_iid:
+            self.selected_disc_entry = None
+            count = sum(len(group.entries) for group in self.stage_groups.values())
+            self.set_text(
+                self.disc_details,
+                "Stages\\nType: Virtual folder\\nStage groups: {}\\nStage files: {}\\n\\n"
+                "Stages are grouped by their known Melee stage names. These folders are only a viewing aid; "
+                "each file retains its original disc path.".format(len(self.stage_groups), count),
+            )
+            self._set_disc_buttons(False, False, False, False)
+            self.status.set("Stages: {} groups, {} files".format(len(self.stage_groups), count))
+            return
+        stage_category = self.stage_category_by_iid.get(iid)
+        if stage_category:
+            self.selected_disc_entry = None
+            groups = self.stage_categories.get(stage_category, [])
+            count = sum(len(group.entries) for group in groups)
+            self.set_text(
+                self.disc_details,
+                "{}\\nType: Stage category\\nStage groups: {}\\nFiles: {}\\n\\n"
+                "Expand a stage folder to select individual DAT/USD files.".format(stage_category, len(groups), count),
+            )
+            self._set_disc_buttons(False, False, False, False)
+            self.status.set("{}: {} groups, {} files".format(stage_category, len(groups), count))
+            return
+        stage_key = self.stage_group_key_by_iid.get(iid)
+        if stage_key:
+            group = self.stage_groups[stage_key]
+            self.selected_disc_entry = None
+            lines = [
+                group.name,
+                "Type: Stage group (virtual folder)",
+                "Files: {}".format(len(group.entries)),
+                "",
+                "Individual files keep their original disc paths:",
+            ]
+            lines.extend("  {} — {}".format(entry.path, disc_file_description(entry.name) or "Stage file") for entry in group.entries)
+            self.set_text(self.disc_details, "\\n".join(lines))
+            self._set_disc_buttons(False, False, False, False)
+            self.status.set("{}: {} stage files".format(group.name, len(group.entries)))
             return
         character_code = self.character_group_code_by_iid.get(iid)
         if character_code:
@@ -519,6 +687,10 @@ class DatTextureWizardPreview:
             "Type: {}".format("Folder" if entry.is_directory else "File"),
             "Disc path: {}".format(entry.path),
         ]
+        if entry.is_file:
+            description = disc_file_description(entry.name)
+            if description:
+                lines.append("Affects / Description: {}".format(description))
         if entry.is_file:
             lines.extend([
                 "Disc offset: 0x{:08X}".format(entry.offset or 0),
@@ -571,6 +743,22 @@ class DatTextureWizardPreview:
     def disc_quick_link(self, category: str):
         if not self.iso:
             messagebox.showinfo("Open a Melee ISO", "Open a GameCube ISO first.", parent=self.root)
+            return
+        if category == "stages":
+            if not self.stage_root_iid:
+                messagebox.showinfo("No stage files", "No recognized Melee stage files were found in this image.", parent=self.root)
+                return
+            self._populate_stage_tree()
+            self.disc_tree.item(self.stage_root_iid, open=True)
+            self.disc_tree.selection_set(self.stage_root_iid)
+            self.disc_tree.focus(self.stage_root_iid)
+            self.disc_tree.see(self.stage_root_iid)
+            self.on_disc_select(None)
+            self.status.set(
+                "Stages shortcut: {} stage groups, {} files".format(
+                    len(self.stage_groups), sum(len(group.entries) for group in self.stage_groups.values())
+                )
+            )
             return
         if category == "characters":
             if not self.character_root_iid:
@@ -710,7 +898,11 @@ class DatTextureWizardPreview:
             messagebox.showerror("Cannot stage replacement", str(exc), parent=self.root)
             return
         self.staged[entry.index] = str(Path(source).resolve())
-        row_iids = (self._entry_iid(entry.index), self.character_file_iids.get(entry.index))
+        row_iids = (
+            self._entry_iid(entry.index),
+            self.character_file_iids.get(entry.index),
+            self.stage_file_iids.get(entry.index),
+        )
         for iid in row_iids:
             if iid and self.disc_tree.exists(iid):
                 self.disc_tree.item(iid, tags=("changed",), values=(
