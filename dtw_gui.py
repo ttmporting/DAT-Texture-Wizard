@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from dtw_dat_probe import DatFormatError
 from dtw_dat_tree import DatTreeModel, TreeRecord
+from dtw_character_tree import build_character_groups
 from dtw_gamecube import GameCubeFormatError, GameCubeIso, ReplacementError, FstEntry
 
 
@@ -23,6 +24,14 @@ class DatTextureWizardPreview:
         self.loaded: set[str] = set()
         self.disc_iids: dict[int, str] = {}
         self.disc_loaded: set[int] = set()
+        self.character_groups = {}
+        self.character_root_iid: str | None = None
+        self.character_group_iids: dict[str, str] = {}
+        self.character_group_code_by_iid: dict[str, str] = {}
+        self.character_file_entries: dict[str, FstEntry] = {}
+        self.character_file_iids: dict[int, str] = {}
+        self.character_tree_loaded = False
+        self.character_group_loaded: set[str] = set()
         self.staged: dict[int, str] = {}
         self.selected_disc_entry: FstEntry | None = None
         self.search_hits: list[int] = []
@@ -254,6 +263,14 @@ class DatTextureWizardPreview:
         self.staged.clear()
         self.disc_iids.clear()
         self.disc_loaded.clear()
+        self.character_groups = {group.code: group for group in build_character_groups(model.entries)}
+        self.character_root_iid = None
+        self.character_group_iids.clear()
+        self.character_group_code_by_iid.clear()
+        self.character_file_entries.clear()
+        self.character_file_iids.clear()
+        self.character_tree_loaded = False
+        self.character_group_loaded.clear()
         self.selected_disc_entry = None
         self.disc_tree.delete(*self.disc_tree.get_children(""))
         title = "Super Smash Bros. Melee" if model.is_melee else "GameCube Disc"
@@ -261,6 +278,16 @@ class DatTextureWizardPreview:
         root_iid = "disc-root"
         self.disc_tree.insert("", "end", iid=root_iid, text=root_text, values=("Disc", "", "0x00000000"), tags=("directory",), open=True)
         self.disc_iids[0] = root_iid
+        if model.is_melee and self.character_groups:
+            self.character_root_iid = "disc-characters"
+            self.disc_tree.insert(
+                root_iid, "end", iid=self.character_root_iid, text="Characters",
+                values=("Virtual Folder", "", ""), tags=("directory",),
+            )
+            self.disc_tree.insert(
+                self.character_root_iid, "end", iid=self.character_root_iid + "/__pending__",
+                text="", values=("", "", ""),
+            )
         self._populate_disc_directory(0)
         self.filename.set(model.path.name)
         self.disc_info_label.configure(
@@ -325,6 +352,48 @@ class DatTextureWizardPreview:
     def _entry_iid(self, index: int) -> str:
         return "disc-entry-{}".format(index)
 
+    def _character_group_iid(self, code: str) -> str:
+        return "disc-character-{}".format(code)
+
+    def _populate_character_tree(self):
+        """Create virtual character folders; their entries retain real FST paths."""
+        if not self.iso or not self.character_root_iid or self.character_tree_loaded:
+            return
+        self._remove_disc_pending(self.character_root_iid)
+        for group in self.character_groups.values():
+            iid = self._character_group_iid(group.code)
+            self.character_group_iids[group.code] = iid
+            self.character_group_code_by_iid[iid] = group.code
+            self.disc_tree.insert(
+                self.character_root_iid, "end", iid=iid, text=group.name,
+                values=("Character", "{} files".format(len(group.entries)), ""),
+                tags=("directory",),
+            )
+            if group.entries:
+                self.disc_tree.insert(iid, "end", iid=iid + "/__pending__", text="", values=("", "", ""))
+        self.character_tree_loaded = True
+
+    def _populate_character_group(self, code: str):
+        """Add character-file aliases that resolve to their original FST entries."""
+        if not self.iso or code in self.character_group_loaded:
+            return
+        group = self.character_groups.get(code)
+        parent_iid = self.character_group_iids.get(code)
+        if not group or not parent_iid:
+            return
+        self._remove_disc_pending(parent_iid)
+        for entry in group.entries:
+            iid = "disc-character-file-{}".format(entry.index)
+            self.character_file_entries[iid] = entry
+            self.character_file_iids[entry.index] = iid
+            tags = ("changed",) if entry.index in self.staged else ()
+            self.disc_tree.insert(
+                parent_iid, "end", iid=iid, text=entry.name,
+                values=("File", self._format_size(self._effective_size(entry)), "0x{:08X}".format(entry.offset or 0)),
+                tags=tags,
+            )
+        self.character_group_loaded.add(code)
+
     def _populate_disc_directory(self, directory_index: int):
         if not self.iso or directory_index in self.disc_loaded:
             return
@@ -365,6 +434,15 @@ class DatTextureWizardPreview:
         if not self.iso:
             return
         iid = self.disc_tree.focus()
+        if iid == self.character_root_iid:
+            self._remove_disc_pending(iid)
+            self._populate_character_tree()
+            return
+        character_code = self.character_group_code_by_iid.get(iid)
+        if character_code:
+            self._remove_disc_pending(iid)
+            self._populate_character_group(character_code)
+            return
         if iid == "disc-root":
             self._remove_disc_pending(iid)
             self._populate_disc_directory(0)
@@ -380,6 +458,9 @@ class DatTextureWizardPreview:
                 self.disc_tree.delete(child)
 
     def _entry_from_iid(self, iid: str) -> FstEntry | None:
+        virtual_entry = self.character_file_entries.get(iid)
+        if virtual_entry is not None:
+            return virtual_entry
         if not self.iso or not iid.startswith("disc-entry-"):
             return None
         try:
@@ -395,6 +476,37 @@ class DatTextureWizardPreview:
             self.selected_disc_entry = None
             return
         iid = selection[0]
+        if iid == self.character_root_iid:
+            self.selected_disc_entry = None
+            file_count = sum(len(group.entries) for group in self.character_groups.values())
+            self.set_text(
+                self.disc_details,
+                "Characters\\nType: Virtual folder\\nCharacter folders: {}\\nCharacter files: {}\\n\\n"
+                "Files are grouped by their Melee fighter prefix for easier browsing. "
+                "These folders are only a viewing aid; each file keeps its original disc path.".format(
+                    len(self.character_groups), file_count
+                ),
+            )
+            self._set_disc_buttons(False, False, False, False)
+            self.status.set("Characters: {} groups, {} files".format(len(self.character_groups), file_count))
+            return
+        character_code = self.character_group_code_by_iid.get(iid)
+        if character_code:
+            group = self.character_groups[character_code]
+            self.selected_disc_entry = None
+            lines = [
+                group.name,
+                "Type: Character group (virtual folder)",
+                "Files: {}".format(len(group.entries)),
+                "",
+                "Select an individual file below to export or stage a replacement.",
+                "Original disc paths are preserved:",
+            ]
+            lines.extend("  {}".format(entry.path) for entry in group.entries)
+            self.set_text(self.disc_details, "\\n".join(lines))
+            self._set_disc_buttons(False, False, False, False)
+            self.status.set("{}: {} character files".format(group.name, len(group.entries)))
+            return
         entry = self._entry_from_iid(iid)
         self.selected_disc_entry = entry
         if entry is None:
@@ -460,6 +572,24 @@ class DatTextureWizardPreview:
         if not self.iso:
             messagebox.showinfo("Open a Melee ISO", "Open a GameCube ISO first.", parent=self.root)
             return
+        if category == "characters":
+            if not self.character_root_iid:
+                messagebox.showinfo("No character files", "No recognized Melee character files were found in this image.", parent=self.root)
+                return
+            self._populate_character_tree()
+            self.disc_tree.item(self.character_root_iid, open=True)
+            self.disc_tree.selection_set(self.character_root_iid)
+            self.disc_tree.focus(self.character_root_iid)
+            self.disc_tree.see(self.character_root_iid)
+            self.on_disc_select(None)
+            self.status.set(
+                "Characters shortcut: {} fighter folders, {} files".format(
+                    len(self.character_groups),
+                    sum(len(group.entries) for group in self.character_groups.values()),
+                )
+            )
+            return
+
         def matches(entry: FstEntry) -> bool:
             if not entry.is_file:
                 return False
@@ -467,8 +597,6 @@ class DatTextureWizardPreview:
             path = entry.path.casefold()
             if category == "system":
                 return name in {"boot.bin", "bi2.bin", "apploader.img", "apploader.ldr", "start.dol", "game.toc", "iso.hdr"} or "/sys/" in path
-            if category == "characters":
-                return name.startswith("pl") and name.endswith((".dat", ".usd", ".lat", ".rat"))
             if category == "menus":
                 return name.startswith(("mn", "sdmenu", "menu")) and name.endswith((".dat", ".usd"))
             if category == "stages":
@@ -582,11 +710,12 @@ class DatTextureWizardPreview:
             messagebox.showerror("Cannot stage replacement", str(exc), parent=self.root)
             return
         self.staged[entry.index] = str(Path(source).resolve())
-        iid = self._entry_iid(entry.index)
-        if self.disc_tree.exists(iid):
-            self.disc_tree.item(iid, tags=("changed",), values=(
-                "File", self._format_size(int(staged_info["new_size"])), "0x{:08X}".format(entry.offset or 0)
-            ))
+        row_iids = (self._entry_iid(entry.index), self.character_file_iids.get(entry.index))
+        for iid in row_iids:
+            if iid and self.disc_tree.exists(iid):
+                self.disc_tree.item(iid, tags=("changed",), values=(
+                    "File", self._format_size(int(staged_info["new_size"])), "0x{:08X}".format(entry.offset or 0)
+                ))
         self._update_staged_controls()
         self.on_disc_select(None)
         self.status.set("Replacement staged for {} — source ISO not changed".format(entry.path))
