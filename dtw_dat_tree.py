@@ -130,9 +130,9 @@ def root_type_hint(label: str | None) -> str | None:
 class DatTreeModel:
     """Parse a DAT once, then serve lazy tree branches and field inspection."""
 
-    def __init__(self, path: str | Path):
+    def __init__(self, path: str | Path, data: bytes | None = None):
         self.path = Path(path).expanduser().resolve()
-        self.data = self.path.read_bytes()
+        self.data = bytes(data) if data is not None else self.path.read_bytes()
         self.report = inspect_dat(self.data)
         if not self.report.get("valid"):
             raise DatFormatError(
