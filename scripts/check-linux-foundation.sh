@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-echo "== Compatibility and DAT navigation unit tests =="
+echo "== Compatibility, DAT navigation, and GameCube disc tests =="
 python3 -m unittest discover -s tests -v
 
 echo
