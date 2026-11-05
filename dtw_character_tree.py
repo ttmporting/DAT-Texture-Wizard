@@ -14,33 +14,43 @@ from dtw_gamecube import FstEntry
 
 
 CHARACTER_NAMES = {
+    "BO": "Male Wireframe",
     "CA": "Captain Falcon",
+    "CH": "Crazy Hand",
     "CL": "Young Link",
     "DK": "Donkey Kong",
     "DR": "Dr. Mario",
     "FC": "Falco",
+    "FE": "Roy",
     "FX": "Fox",
+    "GK": "Giga Bowser",
+    "GL": "Female Wireframe",
     "GN": "Ganondorf",
     "GW": "Mr. Game & Watch",
+    "IC": "Ice Climbers",
     "KB": "Kirby",
     "KP": "Bowser",
     "LG": "Luigi",
     "LK": "Link",
-    "MA": "Mario",
+    "MH": "Master Hand",
+    "MR": "Mario",
     "MS": "Marth",
     "MT": "Mewtwo",
+    "NN": "Ice Climbers",
     "NS": "Ness",
-    "PC": "Pichu",
     "PE": "Peach",
+    "PC": "Pichu",
     "PK": "Pikachu",
+    "PP": "Ice Climbers",
     "PR": "Jigglypuff",
+    "SB": "Sandbag",
+    "SK": "Sheik",
     "SS": "Samus",
-    "ZD": "Zelda",
     "YS": "Yoshi",
+    "ZD": "Zelda",
 }
-# Nana's PlNn assets belong alongside the Ice Climbers' PlCl/PlIc assets.
-CODE_ALIASES = {"NN": "IC", "IC": "IC"}
-CHARACTER_NAMES["IC"] = "Ice Climbers"
+# Popo and Nana are separate fighter codes but belong in one Ice Climbers folder.
+CODE_ALIASES = {"NN": "IC", "PP": "IC"}
 
 CHARACTER_FILE_SUFFIXES = {".dat", ".usd", ".lat", ".rat"}
 _CHARACTER_PREFIX = re.compile(r"^Pl([A-Z]{2})(?=[A-Z0-9_-]*$)", re.IGNORECASE)
@@ -68,7 +78,7 @@ def character_code_for_entry(entry: FstEntry) -> str | None:
         return None
     raw_code = match.group(1).upper()
     code = CODE_ALIASES.get(raw_code, raw_code)
-    return code if code in CHARACTER_NAMES else None
+    return code if code in CHARACTER_NAMES or code == "IC" else None
 
 
 def build_character_groups(entries: Iterable[FstEntry]) -> tuple[CharacterGroup, ...]:
