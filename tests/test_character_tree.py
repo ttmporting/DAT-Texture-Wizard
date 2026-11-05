@@ -38,33 +38,37 @@ class CharacterTreeTests(unittest.TestCase):
             "GTME01/P-GTME/files/PlFxGr.usd",
         ])
 
-    def test_character_groups_are_human_name_sorted(self):
+    def test_groups_cover_melee_character_identifiers(self):
         groups = build_character_groups([
             make_entry(1, "PlFxGr.dat"),
             make_entry(2, "PlCa.dat"),
-            make_entry(3, "PlMa.dat"),
+            make_entry(3, "PlMr.dat"),
+            make_entry(4, "PlFeGr.dat"),
+            make_entry(5, "PlSk.dat"),
         ])
         self.assertEqual([group.name for group in groups], [
-            "Captain Falcon", "Fox", "Mario"
+            "Captain Falcon", "Fox", "Mario", "Roy", "Sheik"
         ])
 
-    def test_nana_assets_share_the_ice_climbers_group(self):
+    def test_popo_and_nana_share_the_ice_climbers_group(self):
         groups = build_character_groups([
             make_entry(1, "PlNn.dat"),
-            make_entry(2, "PlCl.dat"),
+            make_entry(2, "PlPpGr.dat"),
         ])
         self.assertEqual(len(groups), 1)
         self.assertEqual(groups[0].name, "Ice Climbers")
-        self.assertEqual([entry.name for entry in groups[0].entries], ["PlNn.dat", "PlCl.dat"])
+        self.assertEqual([entry.name for entry in groups[0].entries], ["PlNn.dat", "PlPpGr.dat"])
 
     def test_ignores_nonfighter_and_noncharacter_files(self):
         player = make_entry(1, "Player.dat")
-        unrelated = make_entry(2, "PlFx.png")
-        directory = make_entry(3, "PlFxFolder", kind="directory")
+        common = make_entry(2, "PlCo.dat")
+        unrelated = make_entry(3, "PlFx.png")
+        directory = make_entry(4, "PlFxFolder", kind="directory")
         self.assertIsNone(character_code_for_entry(player))
+        self.assertIsNone(character_code_for_entry(common))
         self.assertIsNone(character_code_for_entry(unrelated))
         self.assertIsNone(character_code_for_entry(directory))
-        self.assertEqual(build_character_groups([player, unrelated, directory]), ())
+        self.assertEqual(build_character_groups([player, common, unrelated, directory]), ())
 
 
 if __name__ == "__main__":
