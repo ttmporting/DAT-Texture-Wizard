@@ -10,10 +10,10 @@ def make_test_iso(path: Path) -> bytes:
     header = bytearray(0x440)
     header[:6] = b"GTME01"
     header[0x1C:0x20] = bytes.fromhex("C2339F3D")
-    fst_offset = 0x400
+    fst_offset = 0x500
     file_offsets = {
-        "opening.bnr": 0x600,
-        "PlFxGr.dat": 0x700,
+        "opening.bnr": 0x800,
+        "PlFxGr.dat": 0x900,
     }
     names = bytearray(b"\0")
 
@@ -38,7 +38,7 @@ def make_test_iso(path: Path) -> bytes:
     fst = bytes(entries + names)
     struct.pack_into(">4I", header, 0x420, 0x300, fst_offset, len(fst), len(fst))
 
-    image = bytearray(0x900)
+    image = bytearray(0xC00)
     image[:len(header)] = header
     image[file_offsets["opening.bnr"]:file_offsets["opening.bnr"] + 5] = b"BNR00"
     image[file_offsets["PlFxGr.dat"]:file_offsets["PlFxGr.dat"] + 8] = b"ORIGDAT!"
