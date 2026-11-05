@@ -376,7 +376,11 @@ class GameCubeIso:
         file_layout: list[tuple[FstEntry, int, int, Path | None]] = []
         cursor = self._align(new_fst_offset + len(new_fst))
         for entry in self.entries:
-            if not entry.is_file:
+            if entry.is_directory:
+                # The parent field is part of the FST format. Reconstruct it from
+                # the directory preorder ranges rather than preserving malformed
+                # parent indices seen in some rebuilt/custom images.
+                struct.pack_into(">I", new_fst, entry.index * FST_ENTRY_SIZE + 4, entry.parent_index)
                 continue
             replacement_path = staged_paths.get(entry.index)
             file_size = replacement_path.stat().st_size if replacement_path else int(entry.size or 0)
