@@ -1,10 +1,11 @@
 # Native Linux GUI preview
 
 This is an early native Tk GUI milestone for the `linux-port` branch. The
-primary workspace is now the **Melee File Tree**, followed by Structural
-Analysis and a reserved DAT Texture Tree tab. The preview supports read-only
-GameCube browsing, file export, and carefully bounded staged file replacement.
-It is not yet the complete DAT Texture Wizard texture editor.
+primary workspace is the **Melee File Tree**, followed by Structural Analysis
+and a reserved DAT Texture Tree tab. The preview supports GameCube disc
+browsing, file export, staged file replacement, and a verified full ISO
+rebuild to a new output image. It is not yet the complete DAT Texture Wizard
+texture editor.
 
 ## Run on Nobara 43
 
@@ -41,27 +42,39 @@ does not load the full disc into memory.
 The right-side actions follow the original DTW layout:
 
 - **Export** — exports a selected file, or recursively exports a selected folder.
-- **Import** — chooses a replacement for one selected file and stages it.
+- **Import** — stages a replacement for one selected file. The source ISO is
+  unchanged.
 - **Browse Textures** — loads a selected DAT/USD into the DAT Texture Tree
   workspace (the actual GX texture scanner/decoder is still pending).
 - **Analyze Structure** — loads a selected DAT/USD into Structural Analysis.
 
-The File menu and right-side panel include **Save Patched ISO As…**. The
-operation creates a new copy and verifies the updated FST size and extracted
-replacement contents. The source ISO is never modified.
+Use **Rebuild / Save ISO As…** after staging one or more replacements. The
+operation creates a new image copy, relocates the FST, repacks every
+FST-listed file at 0x20-byte boundaries, updates the boot header's FST offset,
+size, and maximum-size fields, and verifies all copied/replaced file hashes.
+The source ISO is never modified.
 
-### Safe replacement limits
+### Full rebuild behavior and safety boundaries
 
-Current import/save support is intentionally limited to replacements that fit
-inside the original file's allocated byte range before the next disc file or
-FST. The FST file-size field is updated for a shorter or larger-in-padding
-replacement. If the replacement would overlap another file or the FST, it is
-rejected. Full ISO file relocation/rebuild (needed when a custom DAT grows
-beyond its available space) is not implemented yet.
+The rebuilt image retains the original boot header, BI2, apploader, and DOL
+region at their original offsets. A new FST is written after the DOL, followed
+by all files listed by the FST in table order. Directory entries and the name
+string table are retained; file offsets and sizes are updated.
 
-The FST browser derives directory paths from the directory next-index preorder
-ranges. This tolerates noncanonical directory parent-index fields such as the
-one found in the supplied TM-CE image, while reporting the discrepancy.
+The rebuild supports replacements larger or smaller than their original
+allocation, including custom DATs such as the larger TAILS Fox skin. The
+output is created as a temporary file, reopened, and verified before it is
+atomically renamed to the destination. The original ISO is never overwritten.
+
+The implementation is conservative:
+- The source must have a readable GameCube boot header, FST, and DOL extent.
+- File offsets and sizes must fit the 32-bit GameCube FST fields (4 GiB limit).
+- Replacing the boot DOL itself is not supported.
+- This rebuild preserves existing FST entries and their directory/string table
+  content. It does not add/remove/rename files or create directories.
+- The actual TM-CE image has not yet been exercised end-to-end in the GUI. The
+  FST reader was written to recover paths from directory preorder ranges and
+  to report parent-index inconsistencies encountered in that image.
 
 ## Structural Analysis
 
@@ -85,12 +98,12 @@ remain browsable as generic pointer-bearing structures.
   DAT save, and DAT rebuild are not enabled.
 - The HSD structure model is not yet equivalent to the original recursive
   class-validation engine.
-- Full ISO relocation/rebuild is not enabled; larger replacements are only
-  accepted when the existing file has enough free space before the next disc
-  extent/FST.
-- The main `run-linux.sh` remains intentionally guarded. Use
-  `run-gui-preview.sh` for this preview until the full application migration
-  is complete.
+- Full ISO rebuilding currently supports replacing existing FST-listed files
+  only. It does not yet support new files, directory edits, or replacing the
+  boot DOL.
+- The native GUI remains a focused preview, not the original complete DTW
+  feature set. The main `run-linux.sh` remains intentionally guarded. Use
+  `run-gui-preview.sh` until the full application migration is complete.
 
 ## Tests
 
