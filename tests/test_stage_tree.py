@@ -30,6 +30,16 @@ class StageTreeTests(unittest.TestCase):
         self.assertEqual([group.category for group in groups], ["Target Tests", "Target Tests"])
         self.assertEqual({group.name for group in groups}, {"Captain Falcon's Target Test", "Fox's Target Test"})
 
+    def test_modded_grt_variants_are_not_misclassified_as_target_tests(self):
+        groups = build_stage_groups([
+            make_entry(1, "GrTFe.kat"),
+            make_entry(2, "GrTCa.dat"),
+        ])
+        kalos = next(group for group in groups if group.name == "Kalos Pokémon League")
+        target = next(group for group in groups if group.name == "Captain Falcon's Target Test")
+        self.assertEqual(kalos.category, "Stages")
+        self.assertEqual(target.category, "Target Tests")
+
     def test_one_player_stages_are_separated(self):
         groups = build_stage_groups([make_entry(1, "GrEF1.dat"), make_entry(2, "GrNBa.dat")])
         goomba = next(group for group in groups if group.name == "Goomba Trophy Stage")
