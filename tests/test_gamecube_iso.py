@@ -140,6 +140,8 @@ class GameCubeIsoTests(unittest.TestCase):
         rebuilt = GameCubeIso(destination)
         self.assertEqual(rebuilt.get_entry(1).path, "GTME01/opening.bnr")
         self.assertEqual(rebuilt.get_entry(4).path, "GTME01/P-GTME/files/PlFxGr.dat")
+        self.assertEqual(rebuilt.parent_mismatches, [])
+        self.assertEqual(destination.read_bytes()[:0x704], self.original[:0x704])
         self.assertEqual(rebuilt.read_file(1), b"BNR00")
         self.assertEqual(rebuilt.read_file(4), b"X" * 0x500)
 
