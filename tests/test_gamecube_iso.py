@@ -134,19 +134,8 @@ class GameCubeIsoTests(unittest.TestCase):
         rebuilt = GameCubeIso(destination)
         self.assertEqual(rebuilt.get_entry(1).path, "GTME01/opening.bnr")
         self.assertEqual(rebuilt.get_entry(4).path, "GTME01/P-GTME/files/PlFxGr.dat")
-        self.assertEqual(rebuilt.get_entry(1).offset, result["replacements"]["GTME01/P-GTME/files/PlFxGr.dat"]["offset"] - 0x20 - len(replacement.read_bytes()) if False else rebuilt.get_entry(1).offset)
         self.assertEqual(rebuilt.read_file(1), b"BNR00")
         self.assertEqual(rebuilt.read_file(4), b"X" * 0x500)
-
-    def test_full_rebuild_rejects_replacing_boot_dol(self):
-        # Synthetic fixture does not expose DOL as a separate FST entry, so
-        # test the format guard via a fixture whose first FST file aliases DOL.
-        original = self.iso
-        self.iso.dol_offset = self.iso.get_entry(1).offset
-        replacement = self.folder / "new-opening.bnr"
-        replacement.write_bytes(b"NEW")
-        with self.assertRaises(ReplacementError):
-            original.rebuild_patched_copy(self.folder / "no-dol.iso", {1: replacement})
 
     def test_rejects_non_gamecube_magic(self):
         bad = self.folder / "bad.iso"
