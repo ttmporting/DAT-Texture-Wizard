@@ -204,6 +204,7 @@ def character_description(filename: str, is_20xx: bool = False) -> str | None:
     else:
         color = CHARACTER_COLOR_NAMES.get(color_key, "Unknown color")
         description = prefix + color + " costume"
+    is_20xx = is_20xx or ext in {".lat", ".rat"} or color_key in {"RL", "RR"}
     if is_20xx and (ext == ".lat" or color_key == "RL"):
         description += " ('L' alt)"
     elif is_20xx and (ext == ".rat" or color_key == "RR"):
