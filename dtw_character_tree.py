@@ -75,7 +75,9 @@ def character_code_for_entry(entry: FstEntry) -> str | None:
     Unknown two-letter prefixes are ignored rather than accidentally treating
     arbitrary names such as Player.dat as fighter assets.
     """
-    if not entry.is_file or PurePosixPath(entry.name).suffix.casefold() not in CHARACTER_FILE_SUFFIXES:
+    suffix = PurePosixPath(entry.name).suffix.casefold()
+    numbered_dat = len(suffix) == 4 and suffix[1].isdigit() and suffix[2:] in {"at", "sd"}
+    if not entry.is_file or (suffix not in CHARACTER_FILE_SUFFIXES and not numbered_dat):
         return None
     match = _CHARACTER_PREFIX.match(PurePosixPath(entry.name).stem)
     if not match:
