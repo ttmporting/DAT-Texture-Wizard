@@ -9,8 +9,8 @@ python3 -m unittest discover -s tests -v
 
 echo
 echo "== Compile Python 3 compatibility and GUI modules =="
-python3 -m py_compile dtw_platform.py dtw_dat_probe.py dtw_dat_tree.py dtw_gamecube.py dtw_gui.py \
-    tests/test_dtw_platform.py tests/test_dat_probe.py tests/test_dat_tree_model.py tests/test_gamecube_iso.py
+python3 -m py_compile dtw_platform.py dtw_dat_probe.py dtw_dat_tree.py dtw_character_tree.py dtw_gamecube.py dtw_gui.py \
+    tests/test_dtw_platform.py tests/test_dat_probe.py tests/test_dat_tree_model.py tests/test_character_tree.py tests/test_gamecube_iso.py
 
 echo
 echo "== Audit remaining Python 2 / Windows-only constructs =="
