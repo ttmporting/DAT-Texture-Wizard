@@ -77,7 +77,8 @@ round-trip tests are complete.
 
 The native GUI preview now opens to a Melee-oriented GameCube **Melee File Tree**
 with System / Characters / Menus / Stages shortcuts and right-side Export,
-Import, Browse Textures, and Analyze Structure actions. File export is active;
-Import stages a replacement and can save a verified copy when the replacement
-fits the existing disc allocation. Full ISO relocation/rebuild and texture
-editing are still in development. See [README.GUI.LINUX.md](README.GUI.LINUX.md).
+Import, Browse Textures, and Analyze Structure actions. File export is active.
+Import stages an existing-file replacement; **Rebuild / Save ISO As…** relocates
+the FST and repacks all FST files, so oversized replacements are supported
+within the 32-bit GameCube address limit. Texture editing remains in development.
+See [README.GUI.LINUX.md](README.GUI.LINUX.md).
