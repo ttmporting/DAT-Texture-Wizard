@@ -285,3 +285,47 @@ Important limits:
   DTW's complete disc rebuild feature. Custom DAT files larger than available
   slack are rejected until a fully tested ISO relocation/FST rebuild exists.
 - The application is still not ready to run as a complete Linux texture editor.
+
+
+## Full GameCube ISO rebuild — 2026-11-05
+
+The previous safe-in-place-only import step has been superseded by
+`GameCubeIso.rebuild_patched_copy()`. The GUI now stages a replacement even
+when it is larger than the original FST file allocation, then offers
+**Rebuild / Save ISO As…**.
+
+Rebuild algorithm:
+1. Read the GameCube boot header, DOL offset, FST and FST entries.
+2. Parse the DOL's 7 text and 11 data section offset/size arrays to determine
+   its true file extent. Refuse a rebuild if the DOL cannot be bounded safely
+   or overlaps the current FST.
+3. Copy the original system prefix through the DOL end, preserving the
+   boot header, BI2, apploader and DOL bytes at their original locations.
+4. Place a new FST at the next 0x20-byte boundary after the system prefix.
+   Preserve directory records and the string table; rewrite every file record
+   with a new offset and current file size.
+5. Repack every FST-listed file in FST order on 0x20-byte boundaries. Copy
+   unmodified files from the original image and staged files from their
+   selected replacement paths.
+6. Update boot-header FST offset, size and maximum-size fields at 0x424.
+7. Reopen the temporary output and verify the game ID, FST, paths, sizes,
+   FST header fields, and SHA-256 of every repacked file. Atomically rename
+   the verified temporary output to the destination.
+
+Safety limits:
+- The source image is never modified, and the destination cannot be the source.
+- Replacement file extension must match the selected FST file.
+- Boot DOL replacement is intentionally rejected.
+- Rebuild retains the existing FST directory and name tables. Adding/removing
+  files, creating folders, and renaming entries are not implemented.
+- GameCube FST offsets and file sizes are 32-bit; outputs beyond the 4 GiB
+  addressing limit are rejected.
+- This is a GameCube disc re-layout, not a DAT texture edit. Texture decoding,
+  texture-level import/export, DAT rebuilding and full DTW feature parity are
+  still outstanding.
+
+Automated tests now include oversized replacement, repacking unchanged files,
+FST offset/size update, source-image immutability, and hash-verified output.
+The native CI check compiles `dtw_gamecube.py` and its test module as well as
+running the full unit suite. The real TM-CE ISO still needs a local Nobara test
+because the 713 MB user image is not part of the repository or CI fixtures.
