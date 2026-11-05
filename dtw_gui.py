@@ -11,7 +11,7 @@ from tkinter import filedialog, messagebox, ttk
 
 from dtw_dat_probe import DatFormatError
 from dtw_dat_tree import DatTreeModel, TreeRecord
-from dtw_character_tree import build_character_groups
+from dtw_character_tree import CharacterGroup, build_character_groups
 from dtw_gamecube import GameCubeFormatError, GameCubeIso, ReplacementError, FstEntry
 
 
@@ -24,7 +24,7 @@ class DatTextureWizardPreview:
         self.loaded: set[str] = set()
         self.disc_iids: dict[int, str] = {}
         self.disc_loaded: set[int] = set()
-        self.character_groups = {}
+        self.character_groups: dict[str, CharacterGroup] = {}
         self.character_root_iid: str | None = None
         self.character_group_iids: dict[str, str] = {}
         self.character_group_code_by_iid: dict[str, str] = {}
