@@ -1,8 +1,6 @@
 """Regression checks for editable directory fields in Tk file dialogs."""
-import os
-import tempfile
+import tkinter
 import unittest
-from pathlib import Path
 from unittest.mock import Mock
 
 import dtw_file_dialogs
@@ -13,6 +11,13 @@ class EditableFileDialogPathTests(unittest.TestCase):
         root = Mock()
         dtw_file_dialogs.install_editable_file_dialog_paths(root)
         root.tk.eval.assert_called_once_with(dtw_file_dialogs._TCL_INSTALL_SCRIPT)
+
+    def test_tcl_patch_is_syntactically_complete(self):
+        interpreter = tkinter.Tcl()
+        self.assertEqual(
+            int(interpreter.call("info", "complete", dtw_file_dialogs._TCL_INSTALL_SCRIPT)),
+            1,
+        )
 
     def test_directory_field_supports_select_all_and_clipboard_paste(self):
         script = dtw_file_dialogs._TCL_INSTALL_SCRIPT
