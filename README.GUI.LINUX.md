@@ -57,16 +57,16 @@ costume**, `PlFx.dat` is Fox's NTSC data/shared textures, and known stage
 files are labeled with their stage names. Known special 20XX variants are
 included. Dynamic Random Neutrals names read from a mod's live CSS data are
 not yet resolved, so those currently fall back to their base stage label.
-These are filename-based descriptions, not results from decoding the DAT's
-embedded texture pixels.
 
 The right-side actions follow the original DTW layout:
 
 - **Export** — exports a selected file, or recursively exports a selected folder.
 - **Import** — stages a replacement for one selected file. The source ISO is
   unchanged.
-- **Browse Textures** — loads a selected DAT/USD into the DAT Texture Tree
-  workspace (the actual GX texture scanner/decoder is still pending).
+- **Browse Textures** — scans a selected DAT/USD for HSD texture/image headers,
+  decodes GX image and palette data, and builds a visual PNG thumbnail gallery.
+  Select a thumbnail to inspect its dimensions, GX format, and DAT offsets; use
+  **Save Selected PNG…** to save a decoded preview image.
 - **Analyze Structure** — loads a selected DAT/USD into Structural Analysis.
 
 Use **Rebuild / Save ISO As…** after staging one or more replacements. The
@@ -114,6 +114,25 @@ The implementation is conservative:
   FST reader was written to recover paths from directory preorder ranges and
   to report parent-index inconsistencies encountered in that image.
 
+## DAT Texture Tree PNG previews
+
+Select a DAT/USD in the Melee File Tree and click **Browse Textures**, or open
+a standalone DAT and use **Scan DAT / Refresh PNGs** on the DAT Texture Tree
+tab. The native scanner follows HSD `TextureObjDesc` image-header pointers and
+optional palette headers, validates data bounds, and decodes the GX formats
+I4, I8, IA4, IA8, RGB565, RGB5A3, RGBA8, CI4, CI8, CI14x2, and CMPR.
+
+The gallery displays PNG thumbnails, a larger selected preview, image
+dimensions/format, and the source DAT offsets. You can filter the gallery and
+save a decoded PNG preview for reference. Decoding is read-only and does not
+change the source DAT.
+
+This milestone restores visual texture inspection only. Editing/replacing a
+selected embedded texture, writing updated GX data/palettes back into the DAT,
+and rebuilding DAT pointer/relocation tables are still pending. Candidates
+with invalid bounds or unsupported/missing palette data are skipped and
+reported rather than displayed as guessed images.
+
 ## Structural Analysis
 
 The Structural Analysis tab follows the original DTW organization:
@@ -132,8 +151,10 @@ remain browsable as generic pointer-bearing structures.
 
 ## Current limitations
 
-- GX texture enumeration, image decoding, thumbnails, texture import/export,
-  DAT save, and DAT rebuild are not enabled.
+- GX texture discovery, image decoding, thumbnails, and PNG preview saving are
+  enabled in the native preview. Embedded texture replacement/import, writing
+  updated GX image/palette data back into a DAT, DAT save, and DAT rebuild are
+  not yet enabled.
 - The HSD structure model is not yet equivalent to the original recursive
   class-validation engine.
 - Full ISO rebuilding currently supports replacing existing FST-listed files
