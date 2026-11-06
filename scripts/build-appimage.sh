@@ -17,6 +17,22 @@ if sys.version_info < (3, 11):
 print("Build host Python:", sys.version.split()[0])
 PY
 
+# setuptools executes a root-level setup.py even when pyproject.toml is present.
+# The original Windows setup.py used Python 2 syntax; it is archived under
+# legacy/ and must not be restored at the project root.
+if [[ -f "$ROOT/setup.py" ]]; then
+    echo "ERROR: Root setup.py is the legacy Windows/Python 2 build script." >&2
+    echo "Keep it archived as legacy/windows-setup-cxfreeze.py." >&2
+    exit 2
+fi
+
+echo "== Preflight native PEP 517 wheel build =="
+mkdir -p "$ROOT/build/wheel-preflight"
+PIP_DISABLE_PIP_VERSION_CHECK=1 "$PYTHON_BIN" -m pip wheel \
+    --no-deps \
+    --wheel-dir "$ROOT/build/wheel-preflight" \
+    "$ROOT"
+
 VENV_DIR="${APPIMAGE_VENV:-$ROOT/.venv-appimage}"
 if [[ ! -x "$VENV_DIR/bin/python" ]]; then
     "$PYTHON_BIN" -m venv "$VENV_DIR"
