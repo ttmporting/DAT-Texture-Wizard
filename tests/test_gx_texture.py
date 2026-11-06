@@ -135,6 +135,7 @@ class GXTextureDecoderTests(unittest.TestCase):
         self.assertEqual(report.textures[0].image_data_offset, 0x100)
         self.assertEqual(report.textures[0].name, "texture-fixture_0x120_0")
         self.assertTrue(report.textures[0].png_data.startswith(bytes.fromhex("89504e470d0a1a0a")))
+
     def test_scans_a_real_dat_tree_model_not_only_a_mock(self):
         dat, _fake = make_texture_dat()
         with tempfile.TemporaryDirectory() as tempdir:
@@ -144,6 +145,7 @@ class GXTextureDecoderTests(unittest.TestCase):
             report = scan_gx_textures(model)
         self.assertEqual(len(report.textures), 1)
         self.assertEqual(report.textures[0].image_format, "I4")
+        self.assertEqual(report.textures[0].name, "texture-fixture_0x120_0")
 
     def test_png_reader_decodes_rgba_and_rgb(self):
         source = bytes([10, 20, 30, 40, 50, 60, 70, 80])
