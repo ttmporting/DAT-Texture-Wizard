@@ -152,6 +152,47 @@ images with mismatched dimensions, malformed PNGs, or invalid DAT pointers.
 The importer does not resize images automatically. DAT file size, data-block
 offsets, and relocation tables are kept unchanged during texture replacement.
 
+## AppImage distribution
+
+The DATTextureWizard AppImage packages the **current native Linux GUI
+preview**. It includes a standalone Python 3.12 runtime, Tcl/Tk support files,
+the DAT/ISO modules, a desktop entry, and an application icon. It does not
+package or claim to complete the still-unported legacy Windows/Python 2
+application.
+
+Build locally on Linux with Python 3.11 or newer:
+
+```bash
+bash scripts/build-appimage.sh
+```
+
+The first distributable target is **x86_64**. The resulting file is written to
+`dist/DATTextureWizard-x86_64.AppImage`. Run it directly:
+
+```bash
+chmod +x dist/DATTextureWizard-x86_64.AppImage
+./dist/DATTextureWizard-x86_64.AppImage "$HOME/Downloads/TAILS Test.iso"
+```
+
+AppImage is designed to run on many mainstream **glibc-based** Linux
+distributions. The AppImage bundles Python and Tcl/Tk, but it still relies on
+the host's Linux ABI, desktop/display stack, and AppImage runtime support. It
+is not currently a universal package for musl-based systems such as Alpine,
+and older distributions or other CPU architectures need their own
+compatibility tests/builds.
+
+Most systems can launch an AppImage directly. If the runtime reports a FUSE
+problem, try its built-in extract-and-run fallback:
+
+```bash
+APPIMAGE_EXTRACT_AND_RUN=1 ./dist/DATTextureWizard-x86_64.AppImage
+```
+
+GitHub Actions builds the x86_64 AppImage on every push/PR to `linux-port`,
+smoke-tests bundled Tcl/Tk under a virtual display, and uploads the result as
+a short-lived workflow artifact. Distro-by-distro compatibility testing and
+additional architecture builds remain follow-up work.
+
 ## Structural Analysis
 
 The Structural Analysis tab follows the original DTW organization:
