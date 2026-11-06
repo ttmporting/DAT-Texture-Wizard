@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dat-texture-wizard"
+version = "0.1.0"
+description = "Native Linux DAT Texture Wizard preview for Melee DAT files and GameCube ISOs"
+readme = { file = "README.GUI.LINUX.md", content-type = "text/markdown" }
+requires-python = ">=3.11"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/ttmporting/DAT-Texture-Wizard"
+
+[project.scripts]
+dat-texture-wizard = "dtw_gui:main"
+
+[tool.setuptools]
+py-modules = [
+    "dtw_gui",
+    "dtw_dat_probe",
+    "dtw_dat_tree",
+    "dtw_character_tree",
+    "dtw_disc_labels",
+    "dtw_stage_tree",
+    "dtw_gx_texture",
+    "dtw_gamecube",
+]
+
+[tool.appimage]
+app = "DATTextureWizard"
+entry_point = "dat-texture-wizard"
+python = "3.12"
+appimage_version = "4.1.0"
+appimagectl_version = "4.1.0"
+desktop = "packaging/DATTextureWizard.desktop"
+icon = "packaging/DATTextureWizard.svg"
