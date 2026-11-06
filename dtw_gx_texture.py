@@ -462,7 +462,7 @@ def png_data_uri(png_data: bytes) -> str:
 
 def decode_png_rgba(png_data: bytes) -> tuple[int, int, bytes]:
     """Decode a non-interlaced, 8-bit PNG (RGB/RGBA/gray/indexed) to RGBA."""
-    signature = b"\\x89PNG\\r\\n\\x1a\\n"
+    signature = bytes.fromhex("89504e470d0a1a0a")
     if not png_data.startswith(signature):
         raise GXTextureError("Selected file is not a valid PNG.")
     position = len(signature)
