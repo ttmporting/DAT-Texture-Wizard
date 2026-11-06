@@ -4,8 +4,9 @@ This is an early native Tk GUI milestone for the `linux-port` branch. The
 primary workspace is the **Melee File Tree**, followed by Structural Analysis
 and the visual **DAT Texture Tree** PNG gallery. The preview supports GameCube
 disc browsing, file export, staged file replacement, a verified full ISO
-rebuild to a new output image, and read-only GX texture previews. Embedded
-texture editing and DAT rebuilding are not yet implemented.
+rebuild to a new output image, GX PNG previews, and fixed-size PNG-to-GX
+texture replacement into a new DAT copy. General DAT structure editing and
+DAT rebuilding are still in development.
 
 ## Run on Nobara 43
 
