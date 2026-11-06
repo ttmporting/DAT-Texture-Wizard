@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17233d"/>
+      <stop offset="1" stop-color="#303d59"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#72c5ef"/>
+      <stop offset="1" stop-color="#397cbd"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="48" fill="url(#bg)"/>
+  <g transform="translate(42 42)">
+    <rect x="0" y="0" width="76" height="76" rx="9" fill="url(#tile)"/>
+    <rect x="84" y="0" width="76" height="76" rx="9" fill="#e8a13a"/>
+    <rect x="0" y="84" width="76" height="76" rx="9" fill="#a8b4c8"/>
+    <rect x="84" y="84" width="76" height="76" rx="9" fill="#df6c57"/>
+    <path d="M16 16h44v44H16z" fill="none" stroke="#ffffff" stroke-width="5" opacity=".9"/>
+    <path d="M100 16h44v44h-44z" fill="none" stroke="#fff2dc" stroke-width="5" opacity=".9"/>
+    <path d="M16 100h44v44H16z" fill="none" stroke="#f4f7ff" stroke-width="5" opacity=".9"/>
+    <path d="M100 100h44v44h-44z" fill="none" stroke="#fff0e9" stroke-width="5" opacity=".9"/>
+  </g>
+  <path d="M38 218h180" stroke="#f1f5fb" stroke-width="7" stroke-linecap="round" opacity=".85"/>
+</svg>
