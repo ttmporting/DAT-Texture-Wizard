@@ -365,10 +365,13 @@ def scan_gx_textures(model) -> TextureScanReport:
                 continue
             if image_header_offset not in pointers:
                 continue
-            image_data_offset, width, height, image_type, mipmap_flag, _min_lod, _max_lod = struct.unpack_from(
+            image_data_offset, width, height, image_type, mipmap_flag, min_lod, max_lod = struct.unpack_from(
                 ">IHHIIff", body, image_header_offset
             )
-            if mipmap_flag > 1:
+            if (
+                mipmap_flag > 1 or not math.isfinite(min_lod) or not math.isfinite(max_lod)
+                or min_lod > 10 or max_lod > 10 or min_lod > max_lod
+            ):
                 continue
             data_length = gx_image_data_length(width, height, image_type)
             if image_header_offset not in pointers:
