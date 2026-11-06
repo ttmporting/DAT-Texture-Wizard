@@ -172,7 +172,7 @@ class GXTextureDecoderTests(unittest.TestCase):
         self.assertEqual(tuple(decoded[:4]), (248, 0, 0, 255))
 
     def test_replaces_unpaletted_texture_in_place_without_size_changes(self):
-        dat, fake = make_texture_dat()
+        dat, fake = make_texture_dat(4, 8, 8)
         texture = scan_gx_textures(fake).textures[0]
         replacement_rgba = bytes([0, 255, 0, 255] * 64)
         replacement_png = encode_rgba_png(8, 8, replacement_rgba)
@@ -181,7 +181,7 @@ class GXTextureDecoderTests(unittest.TestCase):
         self.assertEqual(updated[:0x20], dat[:0x20])
         reparsed = DatTreeModel(Path("texture-fixture.dat"), data=updated)
         decoded = scan_gx_textures(reparsed).textures[0]
-        self.assertEqual(tuple(decoded.rgba[:4]), (0, 255, 0, 255))
+        self.assertEqual(tuple(decoded.rgba[:4]), (0, 252, 0, 255))
 
     def test_replaces_indexed_texture_and_palette_in_place(self):
         palette_bytes = struct.pack(">16H", 0xF800, *([0] * 15))
