@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import dtw_gui
+import dtw_appimage_runtime
 
 
 class BundledTclTkRuntimeTests(unittest.TestCase):
@@ -18,12 +18,12 @@ class BundledTclTkRuntimeTests(unittest.TestCase):
             (tcl_dir / "init.tcl").write_text("# bundled Tcl fixture", encoding="utf-8")
             (tk_dir / "tk.tcl").write_text("# bundled Tk fixture", encoding="utf-8")
 
-            with patch.object(dtw_gui.sys, "prefix", tempdir):
+            with patch.object(dtw_appimage_runtime.sys, "prefix", tempdir):
                 with patch.dict(os.environ, {"APPDIR": "/tmp/test-appdir"}, clear=False):
                     os.environ.pop("TCL_LIBRARY", None)
                     os.environ.pop("TK_LIBRARY", None)
                     try:
-                        dtw_gui._configure_bundled_tcl_tk()
+                        dtw_appimage_runtime.configure_bundled_tcl_tk()
                         self.assertEqual(os.environ["TCL_LIBRARY"], str(tcl_dir))
                         self.assertEqual(os.environ["TK_LIBRARY"], str(tk_dir))
                     finally:
