@@ -80,5 +80,7 @@ with System / Characters / Menus / Stages shortcuts and right-side Export,
 Import, Browse Textures, and Analyze Structure actions. File export is active.
 Import stages an existing-file replacement; **Rebuild / Save ISO As…** relocates
 the FST and repacks all FST files, so oversized replacements are supported
-within the 32-bit GameCube address limit. Texture editing remains in development.
+within the 32-bit GameCube address limit. The DAT Texture Tree now discovers
+and decodes supported GX image/palette records into a visual PNG gallery;
+embedded texture editing and DAT save/rebuild remain in development.
 See [README.GUI.LINUX.md](README.GUI.LINUX.md).
