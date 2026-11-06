@@ -166,6 +166,13 @@ Build locally on Linux with Python 3.11 or newer:
 bash scripts/build-appimage.sh
 ```
 
+The former root-level `setup.py` was the original Windows cx_Freeze script
+and used Python 2 syntax. It is preserved as
+`legacy/windows-setup-cxfreeze.py`; the root-level `setup.py` is intentionally
+absent so setuptools uses the native `pyproject.toml` metadata. The build
+script first creates a PEP 517 wheel with the host Python as a preflight, then
+builds the standalone AppImage.
+
 The first distributable target is **x86_64**. The resulting file is written to
 `dist/DATTextureWizard-x86_64.AppImage`. Run it directly:
 
