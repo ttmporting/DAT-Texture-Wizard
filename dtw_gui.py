@@ -14,7 +14,10 @@ from dtw_dat_tree import DatTreeModel, TreeRecord
 from dtw_character_tree import CharacterGroup, build_character_groups
 from dtw_disc_labels import disc_file_description
 from dtw_stage_tree import StageGroup, build_stage_groups
-from dtw_gx_texture import TexturePreview, TextureScanReport, encode_rgba_png, png_data_uri, resize_rgba_nearest, scan_gx_textures
+from dtw_gx_texture import (
+    GXTextureError, TexturePreview, TextureScanReport, encode_rgba_png, png_data_uri,
+    replace_texture_in_dat, resize_rgba_nearest, scan_gx_textures,
+)
 from dtw_gamecube import GameCubeFormatError, GameCubeIso, ReplacementError, FstEntry
 
 
@@ -28,6 +31,9 @@ class DatTextureWizardPreview:
         self.texture_cards: list[tuple[ttk.Frame, TexturePreview]] = []
         self.selected_texture: TexturePreview | None = None
         self.texture_preview_photo: tk.PhotoImage | None = None
+        self.dat_original_data: bytes | None = None
+        self.dat_working_data: bytes | None = None
+        self.dat_modified = False
         self.records: dict[str, TreeRecord] = {}
         self.loaded: set[str] = set()
         self.disc_iids: dict[int, str] = {}
@@ -196,7 +202,17 @@ class DatTextureWizardPreview:
             preview_side, text="Save Selected PNG…",
             command=self.save_selected_texture_png, state="disabled"
         )
-        self.texture_save_png_button.pack(fill="x")
+        self.texture_save_png_button.pack(fill="x", pady=(0, 4))
+        self.texture_import_png_button = ttk.Button(
+            preview_side, text="Import PNG into Selected Texture…",
+            command=self.import_png_into_selected_texture, state="disabled"
+        )
+        self.texture_import_png_button.pack(fill="x", pady=4)
+        self.texture_save_dat_button = ttk.Button(
+            preview_side, text="Save Modified DAT As…",
+            command=self.save_modified_dat_as, state="disabled"
+        )
+        self.texture_save_dat_button.pack(fill="x", pady=4)
         ttk.Label(
             self.texture_tab,
             text="Previews are decoded from the DAT's GX image/palette data. This view is read-only; "
@@ -218,6 +234,18 @@ class DatTextureWizardPreview:
         self.texture_details.delete("1.0", "end")
         self.texture_details.configure(state="disabled")
         self.texture_save_png_button.configure(state="disabled")
+        self.texture_import_png_button.configure(state="disabled")
+        self._update_texture_edit_buttons()
+
+    def _update_texture_edit_buttons(self):
+        if not hasattr(self, "texture_import_png_button"):
+            return
+        self.texture_import_png_button.configure(
+            state="normal" if self.dat_model and self.selected_texture else "disabled"
+        )
+        self.texture_save_dat_button.configure(
+            state="normal" if self.dat_modified and self.dat_working_data else "disabled"
+        )
 
     def scan_current_dat_textures(self):
         if not self.dat_model:
@@ -337,8 +365,99 @@ class DatTextureWizardPreview:
             "",
             "PNG preview is a decoded view of this DAT image payload. The DAT has not been modified.",
         ])
+        details.extend([
+            "",
+            "Import a PNG with exactly the same dimensions to replace this image.",
+            "The image is encoded in the existing GX format and block allocation.",
+        ])
         self.set_text(self.texture_details, "\n".join(details))
         self.texture_save_png_button.configure(state="normal")
+        self._update_texture_edit_buttons()
+
+    def import_png_into_selected_texture(self):
+        if not self.dat_model or not self.dat_working_data or not self.selected_texture:
+            return
+        texture = self.selected_texture
+        source = filedialog.askopenfilename(
+            title="Choose PNG for {}".format(texture.name),
+            filetypes=[("PNG images", "*.png"), ("All files", "*.*")],
+        )
+        if not source:
+            return
+        try:
+            png_path = Path(source)
+            if png_path.stat().st_size > 64 * 1024 * 1024:
+                raise GXTextureError("PNG file is larger than the 64 MiB import limit.")
+            png_bytes = png_path.read_bytes()
+            updated_data = replace_texture_in_dat(self.dat_working_data, texture, png_bytes)
+            updated_model = DatTreeModel(self.dat_model.path, data=updated_data)
+        except (OSError, DatFormatError, GXTextureError, ValueError, struct.error) as exc:
+            messagebox.showerror("Texture import failed", str(exc), parent=self.root)
+            return
+
+        texture_offset = texture.texture_offset
+        self._set_dat_model(updated_model, modified=True)
+        self.scan_current_dat_textures()
+        replacement = next(
+            (item for item in (self.texture_scan_report.textures if self.texture_scan_report else ())
+             if item.texture_offset == texture_offset),
+            None,
+        )
+        if replacement:
+            self.select_texture_preview(replacement)
+        self.texture_status.set(
+            "Imported {} into {}. Save the modified DAT as a new file.".format(
+                png_path.name, self.dat_model.file_name
+            )
+        )
+        self.status.set("Texture imported in memory; the source DAT has not been changed.")
+        messagebox.showinfo(
+            "Texture imported",
+            "{} was encoded as {} ({}×{}).\n\n"
+            "Save Modified DAT As… to create a new DAT. You can then use the Melee File Tree's "
+            "Import action to stage that DAT into your ISO and Rebuild / Save ISO As…".format(
+                texture.name, texture.image_format, texture.width, texture.height
+            ),
+            parent=self.root,
+        )
+
+    def save_modified_dat_as(self):
+        if not self.dat_model or not self.dat_working_data or not self.dat_modified:
+            return
+        source_path = self.dat_model.path
+        initial_name = source_path.stem + "-edited" + (source_path.suffix or ".dat")
+        destination = filedialog.asksaveasfilename(
+            title="Save modified DAT as a new file",
+            initialfile=initial_name,
+            defaultextension=".dat",
+            filetypes=[("DAT files", "*.dat *.usd"), ("All files", "*.*")],
+            confirmoverwrite=True,
+        )
+        if not destination:
+            return
+        target = Path(destination).expanduser()
+        temporary = target.with_name(target.name + ".dtw-tmp")
+        try:
+            if source_path.exists() and target.resolve() == source_path.resolve():
+                raise OSError("Choose a new filename; the original DAT must remain untouched.")
+            temporary.write_bytes(self.dat_working_data)
+            os.replace(temporary, target)
+        except OSError as exc:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+            messagebox.showerror("Could not save DAT", str(exc), parent=self.root)
+            return
+        self.texture_status.set("Modified DAT saved: {}".format(target))
+        self.status.set("Saved modified DAT copy: {}".format(target))
+        messagebox.showinfo(
+            "Modified DAT saved",
+            "Saved a new DAT copy to:\n{}\n\n"
+            "To use it in your ISO, select the original DAT in the Melee File Tree, "
+            "click Import, choose this saved file, then use Rebuild / Save ISO As…".format(target),
+            parent=self.root,
+        )
 
     def save_selected_texture_png(self):
         if not self.selected_texture:
@@ -595,8 +714,14 @@ class DatTextureWizardPreview:
         self.status.set("Loaded {} from {}".format(display_name, disc_path))
         return True
 
-    def _set_dat_model(self, model: DatTreeModel):
+    def _set_dat_model(self, model: DatTreeModel, modified: bool = False):
         self.dat_model = model
+        self.dat_working_data = bytes(model.data)
+        if not modified:
+            self.dat_original_data = self.dat_working_data
+            self.dat_modified = False
+        else:
+            self.dat_modified = self.dat_original_data is not None and self.dat_working_data != self.dat_original_data
         self.records.clear()
         self.loaded.clear()
         self.tree.delete(*self.tree.get_children(""))
@@ -619,6 +744,7 @@ class DatTextureWizardPreview:
         self.texture_status.set(
             "{} loaded. Choose Scan DAT / Refresh PNGs to enumerate embedded GX images.".format(model.file_name)
         )
+        self._update_texture_edit_buttons()
 
     # -------------------------------------------------------------- disc tree
     def _entry_iid(self, index: int) -> str:
