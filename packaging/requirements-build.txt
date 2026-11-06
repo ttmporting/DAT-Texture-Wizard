@@ -1,0 +1,2 @@
+appimage==4.1.0 \
+    --hash=sha256:1d4bff605dad7b202bc2607562b663c316f7126f8c7af6098d669a4b9f207d01
