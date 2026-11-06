@@ -363,10 +363,12 @@ class DatTextureWizardPreview:
             details.insert(5, "Palette header: 0x{:X}".format(texture.palette_header_offset + 0x20))
         details.extend([
             "",
-            "PNG preview is a decoded view of this DAT image payload. The DAT has not been modified.",
-        ])
-        details.extend([
-            "",
+            (
+                "This preview reflects in-memory DAT edits. Save Modified DAT As… to keep them; "
+                "the original file on disk is still untouched."
+                if self.dat_modified else
+                "PNG preview is a decoded view of this DAT image payload. The source DAT has not been modified."
+            ),
             "Import a PNG with exactly the same dimensions to replace this image.",
             "The image is encoded in the existing GX format and block allocation.",
         ])
