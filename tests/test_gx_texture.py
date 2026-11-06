@@ -1,5 +1,9 @@
 import struct
+import tempfile
 import unittest
+from pathlib import Path
+
+from dtw_dat_tree import DatTreeModel
 
 from dtw_gx_texture import (
     GXTextureError,
@@ -126,6 +130,16 @@ class GXTextureDecoderTests(unittest.TestCase):
         self.assertEqual(report.textures[0].image_format, "I4")
         self.assertEqual(report.textures[0].image_data_offset, 0x100)
         self.assertTrue(report.textures[0].png_data.startswith(b"\x89PNG"))
+
+    def test_scans_a_real_dat_tree_model_not_only_a_mock(self):
+        dat, _fake = make_texture_dat()
+        with tempfile.TemporaryDirectory() as tempdir:
+            path = Path(tempdir) / "texture-fixture.dat"
+            path.write_bytes(dat)
+            model = DatTreeModel(path)
+            report = scan_gx_textures(model)
+        self.assertEqual(len(report.textures), 1)
+        self.assertEqual(report.textures[0].image_format, "I4")
 
     def test_discovers_indexed_texture_and_palette(self):
         palette_bytes = struct.pack(">16H", 0xF800, *([0] * 15))
