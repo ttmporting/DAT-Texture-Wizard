@@ -386,6 +386,11 @@ repository or CI fixtures.
   and capacity; CI14x2 palette quantization is capped at 512 active entries.
 - The GUI now offers **Import PNG into Selected Texture…** and
   **Save Modified DAT As…**. Multiple textures can be imported before saving.
+- Exported PNGs use a non-empty HSD texture-object name when available, with
+  the original DTW fallback naming convention (DAT stem, absolute image-data
+  offset, GX type) when the HSD Name_Pointer is null.
+- Fixed PNG signature validation so PNGs exported by the gallery pass the
+  importer's own PNG reader; the regression suite covers this round trip.
 - Replacements keep original dimensions, format, payload byte lengths, DAT
   length, and relocation table. The original DAT is never overwritten.
 - The user can stage the saved DAT through the existing ISO Import and
