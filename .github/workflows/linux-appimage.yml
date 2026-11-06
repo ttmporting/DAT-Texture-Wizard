@@ -58,3 +58,55 @@ jobs:
           path: dist/DATTextureWizard-*.AppImage
           if-no-files-found: error
           retention-days: 14
+
+  test-mainstream-distros:
+    name: Smoke-test on ${{ matrix.distro }}
+    needs: build-x86_64-appimage
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: Ubuntu 22.04
+            image: ubuntu:22.04
+            install: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb xauth
+          - distro: Ubuntu 24.04
+            image: ubuntu:24.04
+            install: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb xauth
+          - distro: Debian 12
+            image: debian:12
+            install: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb xauth
+          - distro: Debian 13
+            image: debian:13
+            install: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y xvfb xauth
+          - distro: Fedora 43
+            image: fedora:43
+            install: dnf install -y xorg-x11-server-Xvfb xorg-x11-xauth
+          - distro: Fedora 44
+            image: fedora:44
+            install: dnf install -y xorg-x11-server-Xvfb xorg-x11-xauth
+          - distro: Arch Linux
+            image: archlinux:latest
+            install: pacman -Sy --noconfirm --needed xorg-server-xvfb xorg-xauth
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - name: Download AppImage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: DATTextureWizard-AppImage-x86_64
+          path: dist
+
+      - name: Install virtual display
+        run: ${{ matrix.install }}
+
+      - name: Smoke-test GUI and bundled Tcl/Tk
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          set -euo pipefail
+          APPIMAGE="$(find dist -maxdepth 1 -type f -name 'DATTextureWizard-*.AppImage' -print -quit)"
+          test -n "$APPIMAGE"
+          chmod +x "$APPIMAGE"
+          ldd --version | head -n 1
+          xvfb-run -a "$APPIMAGE" --appimage-smoke-test
