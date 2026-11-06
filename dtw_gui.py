@@ -5,8 +5,29 @@ from __future__ import annotations
 import argparse
 import os
 import struct
-import tkinter as tk
+import sys
 from pathlib import Path
+
+
+def _configure_bundled_tcl_tk() -> None:
+    """Point bundled Python/Tk at the Tcl scripts shipped inside an AppImage."""
+    if not os.environ.get("APPDIR"):
+        return
+    library_root = Path(sys.prefix) / "lib"
+    tcl_dirs = sorted(library_root.glob("tcl*"))
+    tk_dirs = sorted(library_root.glob("tk*"))
+    tcl_dir = next((path for path in tcl_dirs if (path / "init.tcl").is_file()), None)
+    tk_dir = next((path for path in tk_dirs if (path / "tk.tcl").is_file()), None)
+    if tcl_dir:
+        os.environ["TCL_LIBRARY"] = str(tcl_dir)
+    if tk_dir:
+        os.environ["TK_LIBRARY"] = str(tk_dir)
+
+
+# Configure paths before tkinter imports _tkinter and initializes Tcl/Tk.
+_configure_bundled_tcl_tk()
+
+import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from dtw_dat_probe import DatFormatError
@@ -1523,7 +1544,22 @@ class DatTextureWizardPreview:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="DAT Texture Wizard native Linux GUI preview")
     parser.add_argument("disc_or_dat", nargs="?", help="Optional ISO/GCM/DAT file to open at startup")
+    parser.add_argument(
+        "--appimage-smoke-test",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args(argv)
+    if args.appimage_smoke_test:
+        # Used by the AppImage CI job under Xvfb to verify bundled Tcl/Tk loads.
+        root = tk.Tk()
+        root.withdraw()
+        root.update_idletasks()
+        tcl_version = root.tk.call("info", "patchlevel")
+        tk_version = root.tk.call("package", "provide", "Tk")
+        root.destroy()
+        print("AppImage GUI smoke test passed (Tcl {}, Tk {}).".format(tcl_version, tk_version))
+        return 0
     root = tk.Tk()
     DatTextureWizardPreview(root, args.disc_or_dat)
     root.mainloop()
