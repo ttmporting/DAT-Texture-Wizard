@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=DAT Texture Wizard
+Comment=Browse Melee DAT textures and rebuild GameCube ISO files
+Exec=AppRun %F
+Icon=DATTextureWizard
+Terminal=false
+Categories=Graphics;Utility;Game;
+StartupNotify=true
