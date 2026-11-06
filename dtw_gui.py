@@ -8,6 +8,7 @@ import struct
 from pathlib import Path
 
 from dtw_appimage_runtime import configure_bundled_tcl_tk
+from dtw_file_dialogs import install_editable_file_dialog_paths
 
 
 # Configure paths before tkinter imports _tkinter and initializes Tcl/Tk.
@@ -31,6 +32,7 @@ from dtw_gamecube import GameCubeFormatError, GameCubeIso, ReplacementError, Fst
 class DatTextureWizardPreview:
     def __init__(self, root: tk.Tk, initial_file: str | None = None):
         self.root = root
+        install_editable_file_dialog_paths(root)
         self.iso: GameCubeIso | None = None
         self.dat_model: DatTreeModel | None = None
         self.texture_scan_report: TextureScanReport | None = None
