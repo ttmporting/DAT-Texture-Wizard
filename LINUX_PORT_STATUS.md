@@ -400,3 +400,23 @@ repository or CI fixtures.
   editing, and general DAT rebuilding remain unsupported.
 - Added tests for GX encoding/decoding, palette replacement, PNG import,
   same-size DAT patching, and dimension-mismatch refusal.
+
+
+## AppImage packaging scaffold — 2026-11-06
+
+- Added Python packaging metadata for the current native Linux GUI preview and
+  a pinned AppImage 4.1.0 build tool.
+- Added a self-contained Tcl/Tk path bootstrap for the bundled Python runtime
+  and a hidden `--appimage-smoke-test` command that creates a Tk root and
+  reports the bundled Tcl/Tk versions.
+- Added local build script `scripts/build-appimage.sh`, a desktop entry, SVG
+  icon, and GitHub Actions workflow `.github/workflows/linux-appimage.yml`.
+- CI builds an x86_64 AppImage on Ubuntu 22.04, runs the existing foundation
+  tests, launches the resulting package under Xvfb with extract-and-run
+  enabled, and uploads the image as a workflow artifact.
+- The artifact is scoped to the current native Python 3 GUI preview. It does
+  not contain the still-unported legacy Windows/Python 2 application.
+- Initial distribution target is x86_64 glibc-based desktop Linux. Testing
+  across Ubuntu, Debian, Fedora/Nobara, Arch, and other distributions, as well
+  as musl/Alpine and ARM builds, remains future work. The first CI AppImage
+  result is pending.
