@@ -9,7 +9,7 @@ from __future__ import annotations
 
 _TCL_INSTALL_SCRIPT = r"""
 if {![llength [info commands ::tk::dialog::file::Create]]} {
-    catch {auto_load ::tk::dialog::file}
+    catch {auto_load ::tk::dialog::file::Create}
 }
 if {![llength [info commands ::tk::dialog::file::Create]]} {
     error "Tk file dialog implementation is unavailable"
