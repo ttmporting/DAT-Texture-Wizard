@@ -420,3 +420,15 @@ repository or CI fixtures.
   across Ubuntu, Debian, Fedora/Nobara, Arch, and other distributions, as well
   as musl/Alpine and ARM builds, remains future work. The first CI AppImage
   result is pending.
+
+
+## AppImage distro smoke matrix — 2026-11-06
+
+- The AppImage workflow now downloads the built x86_64 artifact into separate
+  container jobs and launches it under Xvfb with extract-and-run enabled on
+  Ubuntu 22.04/24.04, Debian 12/13, Fedora 43/44, and Arch Linux.
+- This verifies startup and bundled Tcl/Tk across a selection of mainstream
+  glibc distributions. It is not a full interactive test of each desktop,
+  GPU driver, compositor, or every release.
+- Alpine/musl and ARM are not included in this first artifact; they need
+  separate build and test targets.
