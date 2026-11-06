@@ -55,6 +55,7 @@ class TexturePreview:
     width: int
     height: int
     image_type: int
+    mipmap_flag: int
     image_format: str
     texture_offset: int
     image_header_offset: int
@@ -425,6 +426,7 @@ def scan_gx_textures(model) -> TextureScanReport:
                 width=width,
                 height=height,
                 image_type=image_type,
+                mipmap_flag=mipmap_flag,
                 image_format=GX_FORMAT_NAMES[image_type],
                 texture_offset=texture_offset,
                 image_header_offset=image_header_offset,
@@ -921,14 +923,19 @@ def replace_texture_in_dat(dat_data: bytes, texture: TexturePreview, png_data: b
     image_header_absolute = 0x20 + texture.image_header_offset
     if image_header_absolute + 0x18 > len(dat_data):
         raise GXTextureError("Image header lies outside the source DAT.")
-    header_data_pointer, header_width, header_height, header_type = struct.unpack_from(
-        ">IHHI", dat_data, image_header_absolute
+    header_data_pointer, header_width, header_height, header_type, mipmap_flag = struct.unpack_from(
+        ">IHHII", dat_data, image_header_absolute
     )
     if (
         header_data_pointer != texture.image_data_offset
         or (header_width, header_height, header_type) != (texture.width, texture.height, texture.image_type)
+        or mipmap_flag != texture.mipmap_flag
     ):
         raise GXTextureError("Texture header changed since the gallery was scanned; rescan before importing.")
+    if mipmap_flag:
+        raise GXTextureError(
+            "This texture uses mipmaps. Mipmapped texture import is not enabled yet, so no data was changed."
+        )
 
     updated = bytearray(dat_data)
     updated[image_absolute:image_absolute + len(encoded_image)] = encoded_image
