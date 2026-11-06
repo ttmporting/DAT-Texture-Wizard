@@ -9,10 +9,13 @@ from dtw_gx_texture import (
     GXTextureError,
     decode_gx_palette,
     decode_gx_pixels,
+    decode_png_rgba,
+    encode_gx_pixels,
     encode_rgba_png,
     gx_image_data_length,
     png_data_uri,
     resize_rgba_nearest,
+    replace_texture_in_dat,
     scan_gx_textures,
 )
 
@@ -140,6 +143,64 @@ class GXTextureDecoderTests(unittest.TestCase):
             report = scan_gx_textures(model)
         self.assertEqual(len(report.textures), 1)
         self.assertEqual(report.textures[0].image_format, "I4")
+
+    def test_png_reader_decodes_rgba_and_rgb(self):
+        source = bytes([10, 20, 30, 40, 50, 60, 70, 80])
+        png = encode_rgba_png(2, 1, source)
+        width, height, rgba = decode_png_rgba(png)
+        self.assertEqual((width, height), (2, 1))
+        self.assertEqual(rgba, source)
+
+    def test_encodes_and_decodes_supported_unpaletted_formats(self):
+        rgba = bytes([255, 0, 0, 255] * 64)
+        for image_type in (0, 1, 2, 3, 4, 5, 6, 14):
+            with self.subTest(image_type=image_type):
+                encoded, palette = encode_gx_pixels(rgba, 8, 8, image_type)
+                self.assertEqual(len(encoded), gx_image_data_length(8, 8, image_type))
+                self.assertEqual(palette, b"")
+                decoded = decode_gx_pixels(encoded, 8, 8, image_type)
+                self.assertEqual(len(decoded), len(rgba))
+                self.assertGreater(decoded[0], decoded[1])
+
+    def test_encodes_ci4_palette_and_indices(self):
+        rgba = bytes([255, 0, 0, 255] * 64)
+        encoded, palette_bytes = encode_gx_pixels(rgba, 8, 8, 8, 1, 16)
+        palette = decode_gx_palette(palette_bytes, 1, 16)
+        decoded = decode_gx_pixels(encoded, 8, 8, 8, palette)
+        self.assertEqual(len(encoded), 32)
+        self.assertEqual(len(palette_bytes), 32)
+        self.assertEqual(tuple(decoded[:4]), (248, 0, 0, 255))
+
+    def test_replaces_unpaletted_texture_in_place_without_size_changes(self):
+        dat, fake = make_texture_dat()
+        texture = scan_gx_textures(fake).textures[0]
+        replacement_rgba = bytes([0, 255, 0, 255] * 64)
+        replacement_png = encode_rgba_png(8, 8, replacement_rgba)
+        updated = replace_texture_in_dat(dat, texture, replacement_png)
+        self.assertEqual(len(updated), len(dat))
+        self.assertEqual(updated[:0x20], dat[:0x20])
+        reparsed = DatTreeModel(Path("texture-fixture.dat"), data=updated)
+        decoded = scan_gx_textures(reparsed).textures[0]
+        self.assertEqual(tuple(decoded.rgba[:4]), (0, 255, 0, 255))
+
+    def test_replaces_indexed_texture_and_palette_in_place(self):
+        palette_bytes = struct.pack(">16H", 0xF800, *([0] * 15))
+        dat, fake = make_texture_dat(8, 8, 8, bytes([0x00]) * 32, 1, palette_bytes)
+        texture = scan_gx_textures(fake).textures[0]
+        replacement_rgba = bytes([0, 0, 255, 255] * 64)
+        replacement_png = encode_rgba_png(8, 8, replacement_rgba)
+        updated = replace_texture_in_dat(dat, texture, replacement_png)
+        reparsed = DatTreeModel(Path("texture-fixture.dat"), data=updated)
+        decoded = scan_gx_textures(reparsed).textures[0]
+        self.assertEqual(tuple(decoded.rgba[:4]), (0, 0, 248, 255))
+        self.assertEqual(len(updated), len(dat))
+
+    def test_refuses_texture_import_with_different_dimensions(self):
+        dat, fake = make_texture_dat()
+        texture = scan_gx_textures(fake).textures[0]
+        replacement_png = encode_rgba_png(4, 4, bytes([0, 255, 0, 255] * 16))
+        with self.assertRaisesRegex(ValueError, "requires exactly 8×8"):
+            replace_texture_in_dat(dat, texture, replacement_png)
 
     def test_discovers_indexed_texture_and_palette(self):
         palette_bytes = struct.pack(">16H", 0xF800, *([0] * 15))
