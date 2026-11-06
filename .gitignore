@@ -19,3 +19,6 @@ bin/tempFiles/
 
 # Visual Studio Code project folder
 .vscode
+
+# AppImage build tool environment
+.venv-appimage/
