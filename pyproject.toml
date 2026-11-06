@@ -19,6 +19,7 @@ dat-texture-wizard = "dtw_gui:main"
 [tool.setuptools]
 py-modules = [
     "dtw_gui",
+    "dtw_appimage_runtime",
     "dtw_dat_probe",
     "dtw_dat_tree",
     "dtw_character_tree",
