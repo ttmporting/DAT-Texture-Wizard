@@ -189,9 +189,11 @@ APPIMAGE_EXTRACT_AND_RUN=1 ./dist/DATTextureWizard-x86_64.AppImage
 ```
 
 GitHub Actions builds the x86_64 AppImage on every push/PR to `linux-port`,
-smoke-tests bundled Tcl/Tk under a virtual display, and uploads the result as
-a short-lived workflow artifact. Distro-by-distro compatibility testing and
-additional architecture builds remain follow-up work.
+smoke-tests bundled Tcl/Tk, and uploads the result as a short-lived workflow
+artifact. A second job launches the same artifact under a virtual display on
+Ubuntu 22.04/24.04, Debian 12/13, Fedora 43/44, and Arch Linux. These are
+startup smoke tests, not a guarantee for every graphics stack or every
+distribution release. Musl/Alpine and ARM builds remain separate targets.
 
 ## Structural Analysis
 
