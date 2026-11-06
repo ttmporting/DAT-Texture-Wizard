@@ -2,10 +2,10 @@
 
 This is an early native Tk GUI milestone for the `linux-port` branch. The
 primary workspace is the **Melee File Tree**, followed by Structural Analysis
-and a reserved DAT Texture Tree tab. The preview supports GameCube disc
-browsing, file export, staged file replacement, and a verified full ISO
-rebuild to a new output image. It is not yet the complete DAT Texture Wizard
-texture editor.
+and the visual **DAT Texture Tree** PNG gallery. The preview supports GameCube
+disc browsing, file export, staged file replacement, a verified full ISO
+rebuild to a new output image, and read-only GX texture previews. Embedded
+texture editing and DAT rebuilding are not yet implemented.
 
 ## Run on Nobara 43
 
@@ -168,6 +168,6 @@ remain browsable as generic pointer-bearing structures.
 
 ```bash
 python3 -m unittest discover -s tests -v
-python3 -m py_compile dtw_dat_probe.py dtw_dat_tree.py dtw_gamecube.py dtw_gui.py
+python3 -m py_compile dtw_dat_probe.py dtw_dat_tree.py dtw_gx_texture.py dtw_gamecube.py dtw_gui.py
 bash -n run-gui-preview.sh
 ```
