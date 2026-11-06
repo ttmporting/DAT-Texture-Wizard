@@ -11,6 +11,7 @@ import math
 import struct
 import zlib
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Iterable
 
 
@@ -418,7 +419,12 @@ def scan_gx_textures(model) -> TextureScanReport:
             if name_pointer_location in pointers:
                 texture_name = _read_c_string(body, _u32(body, name_pointer_location))
             if not texture_name:
-                texture_name = "Texture {:02d}".format(len(previews) + 1)
+                # Match upstream DTW's standard texture filename convention:
+                # DAT stem + absolute image-data offset + GX image type.
+                dat_stem = PurePosixPath(getattr(model, "file_name", "texture.dat")).stem
+                texture_name = "{}_0x{:X}_{}".format(
+                    dat_stem, 0x20 + image_data_offset, image_type
+                )
 
             previews.append(TexturePreview(
                 index=len(previews) + 1,
