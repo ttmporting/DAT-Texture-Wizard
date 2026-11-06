@@ -73,7 +73,8 @@ def make_texture_dat(image_type=0, width=8, height=8, image_bytes=None, palette_
 class GXTextureDecoderTests(unittest.TestCase):
     def test_gx_block_sizes_include_padding(self):
         self.assertEqual(gx_image_data_length(1, 1, 0), 32)
-        self.assertEqual(gx_image_data_length(9, 9, 6), 256)
+        # RGBA8 uses 4x4 / 64-byte blocks; 9x9 pads to 3x3 blocks.
+        self.assertEqual(gx_image_data_length(9, 9, 6), 576)
         self.assertEqual(gx_image_data_length(8, 8, 14), 32)
 
     def test_decodes_i4_nibble_order(self):
