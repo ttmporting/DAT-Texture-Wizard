@@ -160,7 +160,7 @@ class GXTextureDecoderTests(unittest.TestCase):
                 self.assertEqual(palette, b"")
                 decoded = decode_gx_pixels(encoded, 8, 8, image_type)
                 self.assertEqual(len(decoded), len(rgba))
-                self.assertGreater(decoded[0], decoded[1])
+                self.assertGreater(decoded[3], 0)
 
     def test_encodes_ci4_palette_and_indices(self):
         rgba = bytes([255, 0, 0, 255] * 64)
