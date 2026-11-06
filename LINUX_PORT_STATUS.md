@@ -374,3 +374,24 @@ repository or CI fixtures.
   The Linux foundation checker now compiles the new module and runs its tests.
 - User-provided real DAT files have not yet been scanned locally with this
   milestone; actual model/DAT preview output still needs validation on Nobara.
+
+
+## PNG-to-GX texture import — 2026-11-05
+
+- Added a standard-library PNG reader for 8-bit, non-interlaced RGB/RGBA,
+  grayscale, grayscale-alpha, and indexed PNGs.
+- Added fixed-dimension GX encoders for I4, I8, IA4, IA8, RGB565, RGB5A3,
+  RGBA8, CI4, CI8, CI14x2, and CMPR.
+- Indexed imports rebuild the existing TLUT using its original palette format
+  and capacity; CI14x2 palette quantization is capped at 512 active entries.
+- The GUI now offers **Import PNG into Selected Texture…** and
+  **Save Modified DAT As…**. Multiple textures can be imported before saving.
+- Replacements keep original dimensions, format, payload byte lengths, DAT
+  length, and relocation table. The original DAT is never overwritten.
+- The user can stage the saved DAT through the existing ISO Import and
+  **Rebuild / Save ISO As…** flow.
+- Mipmapped textures are explicitly refused until all mip levels can be safely
+  regenerated. PNG resizing, arbitrary DAT block relocation, DAT structural
+  editing, and general DAT rebuilding remain unsupported.
+- Added tests for GX encoding/decoding, palette replacement, PNG import,
+  same-size DAT patching, and dimension-mismatch refusal.
