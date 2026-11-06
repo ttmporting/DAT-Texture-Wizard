@@ -432,3 +432,21 @@ repository or CI fixtures.
   GPU driver, compositor, or every release.
 - Alpine/musl and ARM are not included in this first artifact; they need
   separate build and test targets.
+
+
+## AppImage wheel-build failure fix — 2026-11-06
+
+- Root cause: setuptools' PEP 517 backend was discovering the repository's
+  original root `setup.py`, a Windows cx_Freeze build script containing
+  Python 2 syntax. It was executed while pip prepared wheel metadata under the
+  bundled Python 3.12 runtime and failed before AppImage assembly.
+- Archived the original file unchanged (with a short explanatory header) as
+  `legacy/windows-setup-cxfreeze.py` and removed root-level `setup.py` from
+  the native Linux packaging path. Native packaging metadata remains in
+  `pyproject.toml`.
+- Added `tests/test_appimage_packaging.py` to guard against restoring the
+  legacy root setup script and to validate the setuptools project metadata.
+- Added a host-Python PEP 517 wheel preflight to
+  `scripts/build-appimage.sh`, so future backend failures are surfaced before
+  the standalone AppImage build begins.
+- The next Nobara run should rebuild from the updated `linux-port` branch.
