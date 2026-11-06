@@ -27,6 +27,7 @@ class FakeDat:
         self.structure_offsets = tuple(structure_offsets)
         self.rt_start = rt_start
         self.string_table_start = string_table_start
+        self.file_name = "texture-fixture.dat"
         self.root_nodes = [{"label": "Root"}]
         self.reference_nodes = []
 
@@ -132,8 +133,8 @@ class GXTextureDecoderTests(unittest.TestCase):
         self.assertEqual(report.textures[0].height, 8)
         self.assertEqual(report.textures[0].image_format, "I4")
         self.assertEqual(report.textures[0].image_data_offset, 0x100)
-        self.assertTrue(report.textures[0].png_data.startswith(b"\x89PNG"))
-
+        self.assertEqual(report.textures[0].name, "texture-fixture_0x120_0")
+        self.assertTrue(report.textures[0].png_data.startswith(bytes.fromhex("89504e470d0a1a0a")))
     def test_scans_a_real_dat_tree_model_not_only_a_mock(self):
         dat, _fake = make_texture_dat()
         with tempfile.TemporaryDirectory() as tempdir:
