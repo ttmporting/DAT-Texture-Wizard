@@ -124,14 +124,27 @@ I4, I8, IA4, IA8, RGB565, RGB5A3, RGBA8, CI4, CI8, CI14x2, and CMPR.
 
 The gallery displays PNG thumbnails, a larger selected preview, image
 dimensions/format, and the source DAT offsets. You can filter the gallery and
-save a decoded PNG preview for reference. Decoding is read-only and does not
-change the source DAT.
+save a decoded PNG preview for reference.
 
-This milestone restores visual texture inspection only. Editing/replacing a
-selected embedded texture, writing updated GX data/palettes back into the DAT,
-and rebuilding DAT pointer/relocation tables are still pending. Candidates
-with invalid bounds or unsupported/missing palette data are skipped and
-reported rather than displayed as guessed images.
+To replace a texture, select its thumbnail and choose **Import PNG into
+Selected Texture…**. The import requires an 8-bit, non-interlaced PNG with
+exactly the texture's existing dimensions. The image is re-encoded into the
+original GX format and its existing fixed-size image/palette blocks. This
+supports single-level I4, I8, IA4, IA8, RGB565, RGB5A3, RGBA8, CI4, CI8,
+CI14x2, and CMPR textures. Indexed textures keep their existing palette
+encoding; when necessary, imported colors are quantized to the available
+palette (the importer uses at most 512 distinct entries for CI14x2).
+
+After importing one or more images, choose **Save Modified DAT As…** to write
+a new DAT copy. The original DAT remains untouched. To put the changed DAT
+into an ISO, return to the Melee File Tree, select the original DAT, use its
+**Import** action to stage the saved DAT copy, and then use **Rebuild / Save
+ISO As…**. The source ISO remains untouched.
+
+Imports are refused for mipmapped textures in this first pass, as well as
+images with mismatched dimensions, malformed PNGs, or invalid DAT pointers.
+The importer does not resize images automatically. DAT file size, data-block
+offsets, and relocation tables are kept unchanged during texture replacement.
 
 ## Structural Analysis
 
@@ -151,10 +164,10 @@ remain browsable as generic pointer-bearing structures.
 
 ## Current limitations
 
-- GX texture discovery, image decoding, thumbnails, and PNG preview saving are
-  enabled in the native preview. Embedded texture replacement/import, writing
-  updated GX image/palette data back into a DAT, DAT save, and DAT rebuild are
-  not yet enabled.
+- GX texture discovery, image decoding, thumbnails, PNG preview saving, and
+  fixed-size PNG-to-GX replacement are enabled in the native preview. The
+  replacement path writes same-size image/palette payloads in a new DAT copy;
+  complete DAT structure editing and general DAT rebuilding remain pending.
 - The HSD structure model is not yet equivalent to the original recursive
   class-validation engine.
 - Full ISO rebuilding currently supports replacing existing FST-listed files
