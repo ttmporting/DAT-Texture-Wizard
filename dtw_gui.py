@@ -14,6 +14,7 @@ from dtw_dat_tree import DatTreeModel, TreeRecord
 from dtw_character_tree import CharacterGroup, build_character_groups
 from dtw_disc_labels import disc_file_description
 from dtw_stage_tree import StageGroup, build_stage_groups
+from dtw_gx_texture import TexturePreview, TextureScanReport, encode_rgba_png, png_data_uri, resize_rgba_nearest, scan_gx_textures
 from dtw_gamecube import GameCubeFormatError, GameCubeIso, ReplacementError, FstEntry
 
 
@@ -22,6 +23,11 @@ class DatTextureWizardPreview:
         self.root = root
         self.iso: GameCubeIso | None = None
         self.dat_model: DatTreeModel | None = None
+        self.texture_scan_report: TextureScanReport | None = None
+        self.texture_photo_refs: list[tk.PhotoImage] = []
+        self.texture_cards: list[tuple[ttk.Frame, TexturePreview]] = []
+        self.selected_texture: TexturePreview | None = None
+        self.texture_preview_photo: tk.PhotoImage | None = None
         self.records: dict[str, TreeRecord] = {}
         self.loaded: set[str] = set()
         self.disc_iids: dict[int, str] = {}
@@ -120,18 +126,243 @@ class DatTextureWizardPreview:
         self.tabs.add(self.sa_tab, text="Structural Analysis")
         self._build_structure_view()
 
-        self.texture_tab = ttk.Frame(self.tabs, padding=24)
+        self.texture_tab = ttk.Frame(self.tabs, padding=10)
         self.tabs.add(self.texture_tab, text="DAT Texture Tree")
-        self.texture_heading = ttk.Label(self.texture_tab, text="DAT Texture Tree", font=("TkDefaultFont", 14, "bold"))
-        self.texture_heading.pack(anchor="w")
-        self.texture_summary = tk.Text(self.texture_tab, height=16, wrap="word", borderwidth=0, state="disabled")
-        self.texture_summary.pack(fill="both", expand=True, pady=(8, 0))
-        self.set_text(
-            self.texture_summary,
-            "Open a character or stage DAT using Browse Textures.\n\n"
-            "The native texture hierarchy and GX image decoder are the next migration stage. "
-            "Texture thumbnails, import/export, and texture replacement are not enabled in this preview."
+        self._build_texture_view()
+
+    def _build_texture_view(self):
+        top = ttk.Frame(self.texture_tab)
+        top.pack(fill="x", pady=(0, 8))
+        self.texture_heading = ttk.Label(top, text="DAT Texture Tree", font=("TkDefaultFont", 14, "bold"))
+        self.texture_heading.pack(side="left", padx=(2, 14))
+        self.texture_scan_button = ttk.Button(
+            top, text="Scan DAT / Refresh PNGs", command=self.scan_current_dat_textures, state="disabled"
         )
+        self.texture_scan_button.pack(side="left")
+        ttk.Label(top, text="Filter:").pack(side="left", padx=(14, 4))
+        self.texture_filter_var = tk.StringVar()
+        self.texture_filter_entry = ttk.Entry(top, textvariable=self.texture_filter_var, width=24)
+        self.texture_filter_entry.pack(side="left")
+        self.texture_filter_entry.bind("<KeyRelease>", lambda _event: self._populate_texture_gallery())
+
+        self.texture_status = tk.StringVar(value="Open a DAT/USD file, then scan it to generate PNG previews.")
+        ttk.Label(self.texture_tab, textvariable=self.texture_status, anchor="w").pack(fill="x", pady=(0, 6))
+
+        panes = ttk.Panedwindow(self.texture_tab, orient="horizontal")
+        panes.pack(fill="both", expand=True)
+        gallery_side = ttk.Frame(panes, padding=(2, 2, 8, 2))
+        preview_side = ttk.Frame(panes, padding=(8, 2, 2, 2), width=410)
+        panes.add(gallery_side, weight=5)
+        panes.add(preview_side, weight=3)
+
+        self.texture_canvas = tk.Canvas(gallery_side, highlightthickness=0, borderwidth=0)
+        self.texture_scrollbar = ttk.Scrollbar(
+            gallery_side, orient="vertical", command=self.texture_canvas.yview
+        )
+        self.texture_canvas.configure(yscrollcommand=self.texture_scrollbar.set)
+        self.texture_canvas.pack(side="left", fill="both", expand=True)
+        self.texture_scrollbar.pack(side="right", fill="y")
+        self.texture_gallery_frame = ttk.Frame(self.texture_canvas)
+        self.texture_gallery_window = self.texture_canvas.create_window(
+            (0, 0), window=self.texture_gallery_frame, anchor="nw"
+        )
+        self.texture_gallery_frame.bind(
+            "<Configure>",
+            lambda _event: self.texture_canvas.configure(
+                scrollregion=self.texture_canvas.bbox("all")
+            ),
+        )
+        self.texture_canvas.bind(
+            "<Configure>",
+            lambda event: self.texture_canvas.itemconfigure(
+                self.texture_gallery_window, width=event.width
+            ),
+        )
+
+        ttk.Label(
+            preview_side, text="Selected Texture Preview",
+            font=("TkDefaultFont", 12, "bold")
+        ).pack(anchor="w")
+        self.texture_preview_label = ttk.Label(
+            preview_side, text="Select a thumbnail to inspect the decoded image.",
+            anchor="center", justify="center"
+        )
+        self.texture_preview_label.pack(fill="both", expand=True, pady=(10, 10))
+        self.texture_details = tk.Text(
+            preview_side, height=11, wrap="word", borderwidth=0, state="disabled"
+        )
+        self.texture_details.pack(fill="x", pady=(0, 8))
+        self.texture_save_png_button = ttk.Button(
+            preview_side, text="Save Selected PNG…",
+            command=self.save_selected_texture_png, state="disabled"
+        )
+        self.texture_save_png_button.pack(fill="x")
+        ttk.Label(
+            self.texture_tab,
+            text="Previews are decoded from the DAT's GX image/palette data. This view is read-only; "
+                 "saving a PNG does not change the DAT.",
+            foreground="#536274",
+        ).pack(anchor="w", pady=(7, 0))
+
+    def _clear_texture_gallery(self):
+        if not hasattr(self, "texture_gallery_frame"):
+            return
+        for child in self.texture_gallery_frame.winfo_children():
+            child.destroy()
+        self.texture_photo_refs.clear()
+        self.texture_cards.clear()
+        self.selected_texture = None
+        self.texture_preview_photo = None
+        self.texture_preview_label.configure(image="", text="Select a thumbnail to inspect the decoded image.")
+        self.texture_details.configure(state="normal")
+        self.texture_details.delete("1.0", "end")
+        self.texture_details.configure(state="disabled")
+        self.texture_save_png_button.configure(state="disabled")
+
+    def scan_current_dat_textures(self):
+        if not self.dat_model:
+            self.texture_status.set("Open a DAT/USD file first.")
+            return
+        self.texture_scan_button.configure(state="disabled")
+        self.texture_status.set("Scanning HSD texture headers and decoding GX images…")
+        self.root.update_idletasks()
+        try:
+            self.texture_scan_report = scan_gx_textures(self.dat_model)
+        except (OSError, ValueError, struct.error) as exc:
+            self.texture_scan_report = None
+            self._clear_texture_gallery()
+            self.texture_status.set("Texture scan failed: {}".format(exc))
+            self.texture_scan_button.configure(state="normal")
+            return
+        finally:
+            self.texture_scan_button.configure(state="normal")
+
+        count = len(self.texture_scan_report.textures)
+        warning_count = len(self.texture_scan_report.warnings)
+        status = "{} PNG preview(s) decoded from {}.".format(count, self.dat_model.file_name)
+        if warning_count:
+            status += " {} candidate/warning message(s); see details when no preview is available.".format(warning_count)
+        self.texture_status.set(status)
+        self._populate_texture_gallery()
+        if count == 0:
+            details = "\n".join(self.texture_scan_report.warnings) or "No GX image records were found."
+            self.set_text(self.texture_details, details)
+            self.texture_preview_label.configure(
+                image="", text="No decodable textures found. See scan details below."
+            )
+
+    def _populate_texture_gallery(self):
+        if not hasattr(self, "texture_gallery_frame"):
+            return
+        for child in self.texture_gallery_frame.winfo_children():
+            child.destroy()
+        self.texture_photo_refs.clear()
+        self.texture_cards.clear()
+        if not self.texture_scan_report:
+            return
+        query = self.texture_filter_var.get().strip().casefold()
+        matches = [
+            texture for texture in self.texture_scan_report.textures
+            if not query or query in texture.name.casefold()
+            or query in texture.image_format.casefold()
+            or query in "{}x{}".format(texture.width, texture.height)
+        ]
+        columns = 3
+        for index, texture in enumerate(matches):
+            thumb_w, thumb_h, thumb_rgba = resize_rgba_nearest(
+                texture.rgba, texture.width, texture.height, 128, 96
+            )
+            thumb_png = encode_rgba_png(thumb_w, thumb_h, thumb_rgba)
+            photo = tk.PhotoImage(data=png_data_uri(thumb_png))
+            self.texture_photo_refs.append(photo)
+            card = ttk.Frame(self.texture_gallery_frame, relief="ridge", padding=6)
+            card.grid(
+                row=index // columns, column=index % columns,
+                sticky="nsew", padx=5, pady=5
+            )
+            image_label = ttk.Label(card, image=photo, anchor="center")
+            image_label.pack(fill="both", expand=True)
+            name_label = ttk.Label(
+                card, text=texture.name, anchor="center", justify="center",
+                wraplength=140
+            )
+            name_label.pack(fill="x", pady=(4, 1))
+            info_label = ttk.Label(
+                card, text="{}×{}  ·  {}".format(texture.width, texture.height, texture.image_format),
+                anchor="center"
+            )
+            info_label.pack(fill="x")
+            for widget in (card, image_label, name_label, info_label):
+                widget.bind(
+                    "<Button-1>",
+                    lambda _event, selected=texture: self.select_texture_preview(selected)
+                )
+                widget.configure(cursor="hand2")
+            self.texture_cards.append((card, texture))
+        for column in range(columns):
+            self.texture_gallery_frame.columnconfigure(column, weight=1, uniform="texture-card")
+        if query and not matches:
+            ttk.Label(
+                self.texture_gallery_frame, text="No textures match the current filter."
+            ).grid(row=0, column=0, sticky="w", padx=8, pady=8)
+
+    def select_texture_preview(self, texture: TexturePreview):
+        self.selected_texture = texture
+        preview_w, preview_h, preview_rgba = resize_rgba_nearest(
+            texture.rgba, texture.width, texture.height, 420, 360
+        )
+        preview_png = encode_rgba_png(preview_w, preview_h, preview_rgba)
+        self.texture_preview_photo = tk.PhotoImage(data=png_data_uri(preview_png))
+        self.texture_preview_label.configure(image=self.texture_preview_photo, text="")
+        palette_line = (
+            "Palette: type {} · {:,} colors · data 0x{:X}".format(
+                texture.palette_type, texture.palette_color_count, texture.palette_data_offset or 0
+            )
+            if texture.palette_type is not None else "Palette: none"
+        )
+        details = [
+            texture.name,
+            "Dimensions: {} × {} pixels".format(texture.width, texture.height),
+            "GX format: {} (type {})".format(texture.image_format, texture.image_type),
+            "Texture object: 0x{:X}".format(texture.texture_offset + 0x20),
+            "Image header: 0x{:X}".format(texture.image_header_offset + 0x20),
+            "Image data: 0x{:X} ({:,} bytes)".format(
+                texture.image_data_offset + 0x20, texture.image_data_length
+            ),
+            palette_line,
+        ]
+        if texture.palette_header_offset is not None:
+            details.insert(5, "Palette header: 0x{:X}".format(texture.palette_header_offset + 0x20))
+        details.extend([
+            "",
+            "PNG preview is a decoded view of this DAT image payload. The DAT has not been modified.",
+        ])
+        self.set_text(self.texture_details, "\n".join(details))
+        self.texture_save_png_button.configure(state="normal")
+
+    def save_selected_texture_png(self):
+        if not self.selected_texture:
+            return
+        texture = self.selected_texture
+        safe_name = "".join(
+            ch if ch.isalnum() or ch in "-_ ." else "_" for ch in texture.name
+        ).strip(" .")
+        if not safe_name:
+            safe_name = "texture-{:02d}".format(texture.index)
+        destination = filedialog.asksaveasfilename(
+            title="Save decoded texture preview as PNG",
+            initialfile=safe_name + ".png",
+            defaultextension=".png",
+            filetypes=[("PNG image", "*.png")],
+        )
+        if not destination:
+            return
+        try:
+            Path(destination).write_bytes(texture.png_data)
+        except OSError as exc:
+            messagebox.showerror("Could not save PNG", str(exc), parent=self.root)
+            return
+        self.status.set("Saved PNG preview: {}".format(destination))
 
     def _build_disc_view(self):
         panes = ttk.Panedwindow(self.disc_tab, orient="horizontal")
@@ -338,7 +569,10 @@ class DatTextureWizardPreview:
         self._show_disc_overview()
         self._update_staged_controls()
         self.tabs.select(self.disc_tab)
-        self.set_text(self.texture_summary, "No DAT selected. Choose a .dat or .usd file in the Melee File Tree and use Browse Textures or Analyze Structure.")
+        self.texture_scan_report = None
+        self._clear_texture_gallery()
+        self.texture_scan_button.configure(state="disabled")
+        self.texture_status.set("Select a DAT/USD file, then use Browse Textures or open this tab and scan.")
 
     def load_file(self, path: str):
         try:
@@ -379,11 +613,11 @@ class DatTextureWizardPreview:
                 self.populate_table(item)
         self._show_file_overview()
         self.texture_heading.configure(text="DAT Texture Tree — {}".format(model.file_name))
-        self.set_text(
-            self.texture_summary,
-            "{}\n\nDisc path / source: {}\n\nThe DAT's HSD container parsed successfully. "
-            "Texture enumeration, GX texture decoding, thumbnails, texture import/export, and DAT rebuilding "
-            "are not yet implemented in the Linux preview.".format(model.file_name, model.path)
+        self.texture_scan_report = None
+        self._clear_texture_gallery()
+        self.texture_scan_button.configure(state="normal")
+        self.texture_status.set(
+            "{} loaded. Choose Scan DAT / Refresh PNGs to enumerate embedded GX images.".format(model.file_name)
         )
 
     # -------------------------------------------------------------- disc tree
@@ -987,8 +1221,9 @@ class DatTextureWizardPreview:
         data, name, disc_path = selected
         if not self.load_dat_bytes(data, name, disc_path):
             return
+        self.scan_current_dat_textures()
         self.tabs.select(self.texture_tab)
-        self.status.set("DAT loaded from disc. Texture decoding is the next milestone.")
+        self.status.set("DAT loaded from disc; GX texture PNG previews are ready.")
 
     def analyze_structure(self):
         selected = self._selected_dat_bytes()
