@@ -16,9 +16,11 @@ kept intact while portability work is introduced incrementally.
 - [ ] Verify DAT parsing/rebuilding and TPL encode/decode against fixtures.
 - [ ] Enable the Linux launcher and produce an AppImage/RPM package.
 
-**This is not a runnable Linux port yet.** The original application still uses
-Python 2 imports/syntax. `run-linux.sh` intentionally refuses to launch until a
-`.linux-port-ready` marker is added after the migration and regression tests pass.
+The native Python 3 GUI preview is now runnable and supports the tested Melee
+DAT texture replacement and copy-on-write ISO rebuild workflow. The original
+upstream Windows/Python 2 application is **not yet fully migrated**;
+`run-linux.sh` intentionally remains guarded. The AppImage packages the native
+GUI preview only, not the still-unported legacy application.
 
 ## Nobara 43 setup
 
@@ -85,3 +87,17 @@ and decodes GX image/palette records into a visual PNG gallery, supports
 fixed-size PNG-to-GX texture replacement, and saves edited DAT copies. General
 DAT structure editing and rebuilding remain in development.
 See [README.GUI.LINUX.md](README.GUI.LINUX.md).
+
+## AppImage distribution
+
+The current native GUI preview has an AppImage packaging target. It bundles a
+standalone Python/Tcl/Tk runtime and the required native Linux modules:
+
+```bash
+bash scripts/build-appimage.sh
+```
+
+The initial artifact targets x86_64 glibc-based desktop Linux. Distro coverage,
+older glibc systems, musl/Alpine, and ARM builds require separate validation
+or builds. See [README.GUI.LINUX.md](README.GUI.LINUX.md) for launching,
+FUSE fallback, and the automated build workflow.
