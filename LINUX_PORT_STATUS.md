@@ -353,3 +353,24 @@ repository or CI fixtures.
   compiles both new modules and runs these tests.
 - Dynamic 20XX Random Neutrals names read from live CSS data are not yet
   resolved; the static stage lookup remains the fallback.
+
+
+## Native GX texture PNG gallery — 2026-11-05
+
+- Added a read-only HSD texture scanner following upstream DTW's
+  `TextureObjDesc` -> `ImageObjDesc` and optional `PaletteObjDesc` pointers.
+- Added pure-Python GX image decoding for I4, I8, IA4, IA8, RGB565, RGB5A3,
+  RGBA8, CI4, CI8, CI14x2, and CMPR, including IA8/RGB565/RGB5A3 palettes.
+- Added standard-library RGBA PNG encoding and nearest-neighbor gallery
+  thumbnails; no Pillow or Windows codec executable is required.
+- The DAT Texture Tree now has a filterable thumbnail gallery, selected-image
+  preview, HSD/file offsets, dimensions/format details, and a **Save Selected
+  PNG** action for reference images.
+- The source DAT remains read-only. Embedded texture replacement/import,
+  writing GX payloads/palettes back into DATs, DAT pointer/relocation rebuilding,
+  and save are still pending.
+- Added synthetic tests for format decoding, palette decoding, CMPR
+  transparency, PNG generation, HSD texture discovery, and bounds checking.
+  The Linux foundation checker now compiles the new module and runs its tests.
+- User-provided real DAT files have not yet been scanned locally with this
+  milestone; actual model/DAT preview output still needs validation on Nobara.
