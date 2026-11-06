@@ -215,8 +215,8 @@ class DatTextureWizardPreview:
         self.texture_save_dat_button.pack(fill="x", pady=4)
         ttk.Label(
             self.texture_tab,
-            text="Previews are decoded from the DAT's GX image/palette data. This view is read-only; "
-                 "saving a PNG does not change the DAT.",
+            text="Previews decode the DAT's GX images. Import replaces a texture in the in-memory DAT; "
+                 "Save Modified DAT As… writes a separate copy and leaves the source untouched.",
             foreground="#536274",
         ).pack(anchor="w", pady=(7, 0))
 
