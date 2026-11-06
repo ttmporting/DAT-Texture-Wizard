@@ -108,5 +108,5 @@ jobs:
           APPIMAGE="$(find dist -maxdepth 1 -type f -name 'DATTextureWizard-*.AppImage' -print -quit)"
           test -n "$APPIMAGE"
           chmod +x "$APPIMAGE"
-          ldd --version | head -n 1
+          ldd --version | sed -n '1p'
           xvfb-run -a "$APPIMAGE" --appimage-smoke-test
