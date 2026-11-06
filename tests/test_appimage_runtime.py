@@ -36,7 +36,7 @@ class BundledTclTkRuntimeTests(unittest.TestCase):
             os.environ["TCL_LIBRARY"] = "/host/tcl"
             os.environ["TK_LIBRARY"] = "/host/tk"
             try:
-                dtw_gui._configure_bundled_tcl_tk()
+                dtw_appimage_runtime.configure_bundled_tcl_tk()
                 self.assertEqual(os.environ["TCL_LIBRARY"], "/host/tcl")
                 self.assertEqual(os.environ["TK_LIBRARY"], "/host/tk")
             finally:
