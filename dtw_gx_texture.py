@@ -1,8 +1,8 @@
-"""Read-only Nintendo GX texture discovery and PNG decoding for HSD DAT files.
+"""Nintendo GX texture discovery, PNG decoding, and fixed-size import for HSD DAT files.
 
 Texture headers follow upstream DTW's HSD TextureObjDesc -> ImageObjDesc and
-optional PaletteObjDesc relationships. The decoder is pure Python and writes
-PNG bytes with the standard library; no Windows helpers or Pillow are needed.
+optional PaletteObjDesc relationships. The pure-Python codec writes PNGs and
+imports same-size image/palette payloads without Windows helpers or Pillow.
 """
 from __future__ import annotations
 
