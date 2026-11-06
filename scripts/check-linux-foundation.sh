@@ -44,4 +44,4 @@ rm -f .linux-launch-guard.log
 echo
 echo "Linux port foundation, DAT navigation, stage grouping, and GX texture preview checks passed."
 echo "GameCube file export and copy-on-write ISO rebuilding are enabled in the preview."
-echo "DAT structure navigation and GX previews are read-only; texture editing, DAT save, and full app readiness are not certified."
+echo "GX texture import writes modified DAT copies; real-DAT import validation and full app readiness are not yet certified."
