@@ -125,7 +125,12 @@ I4, I8, IA4, IA8, RGB565, RGB5A3, RGBA8, CI4, CI8, CI14x2, and CMPR.
 
 The gallery displays PNG thumbnails, a larger selected preview, image
 dimensions/format, and the source DAT offsets. You can filter the gallery and
-save a decoded PNG preview for reference.
+save a decoded PNG preview for reference. Exported PNG names follow the original
+DTW convention: a non-empty HSD texture-object name is used when present;
+otherwise DTW uses the DAT filename, absolute image-data offset, and GX type
+(for example, `PlFxGr_0x1A740_14.png`). The import dialog identifies the same
+selected texture object, so the exported PNG can be edited and imported back
+without guessing which gallery entry it belongs to.
 
 To replace a texture, select its thumbnail and choose **Import PNG into
 Selected Texture…**. The import requires an 8-bit, non-interlaced PNG with
