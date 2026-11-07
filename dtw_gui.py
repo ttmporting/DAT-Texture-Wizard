@@ -32,7 +32,7 @@ from dtw_gamecube import GameCubeFormatError, GameCubeIso, ReplacementError, Fst
 class DatTextureWizardPreview:
     def _apply_application_identity(self) -> None:
         """Give desktop shells a stable WM_CLASS and use the original DTW icon."""
-        self.root.wm_class("DATTextureWizard", "DATTextureWizard")
+        self.root.tk.call("wm", "class", self.root._w, "DATTextureWizard")
         self.root.title("DAT Texture Wizard")
 
         candidates: list[Path] = []
