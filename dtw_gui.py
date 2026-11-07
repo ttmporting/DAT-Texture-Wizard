@@ -532,7 +532,7 @@ class DatTextureWizardPreview:
             left, columns=("description", "size", "offset"), show="tree headings", selectmode="browse"
         )
         self.disc_tree.heading("#0", text="Disc File Tree (FST order)", anchor="center")
-        self.disc_tree.heading("description", text="Affects / Description", anchor="center")
+        self.disc_tree.heading("description", text="Description", anchor="center")
         self.disc_tree.heading("size", text="Size", anchor="center")
         self.disc_tree.heading("offset", text="Disc Offset", anchor="center")
         self.disc_tree.column("#0", width=270, minwidth=190, stretch=True)
@@ -1081,7 +1081,7 @@ class DatTextureWizardPreview:
         if entry.is_file:
             description = disc_file_description(entry.name)
             if description:
-                lines.append("Affects / Description: {}".format(description))
+                lines.append("Description: {}".format(description))
         if entry.is_file:
             lines.extend([
                 "Disc offset: 0x{:08X}".format(entry.offset or 0),
