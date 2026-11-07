@@ -52,7 +52,7 @@ named stage folders, with separate **Target Tests**, **1P Mode**, and
 **Other Stage Files** categories. The original FST tree is still available,
 and each virtual file row resolves to its original ISO entry.
 
-The **Affects / Description** column uses the filename lookup conventions from
+The **Description** column uses the filename lookup conventions from
 upstream DTW v6.1.4. For example, `PlFxGr.dat` is labeled **Fox's green
 costume**, `PlFx.dat` is Fox's NTSC data/shared textures, and known stage
 files are labeled with their stage names. Known special 20XX variants are
@@ -173,13 +173,17 @@ absent so setuptools uses the native `pyproject.toml` metadata. The build
 script first creates a PEP 517 wheel with the host Python as a preflight, then
 builds the standalone AppImage.
 
-The first distributable target is **x86_64**. The resulting file is written to
-`dist/DATTextureWizard-x86_64.AppImage`. Run it directly:
+The distributable targets are **x86_64** (Intel/AMD 64-bit) and
+**aarch64** (ARM64). These are separate CPU architectures, so download the
+file matching the computer's processor. A native build writes
+`dist/DATTextureWizard-$(uname -m).AppImage`. For example, on x86_64:
 
 ```bash
 chmod +x dist/DATTextureWizard-x86_64.AppImage
 ./dist/DATTextureWizard-x86_64.AppImage "$HOME/Downloads/TAILS Test.iso"
 ```
+
+On ARM64, use `DATTextureWizard-aarch64.AppImage` instead.
 
 AppImage is designed to run on many mainstream **glibc-based** Linux
 distributions. The AppImage bundles Python and Tcl/Tk, but it still relies on
@@ -195,12 +199,24 @@ problem, try its built-in extract-and-run fallback:
 APPIMAGE_EXTRACT_AND_RUN=1 ./dist/DATTextureWizard-x86_64.AppImage
 ```
 
-GitHub Actions builds the x86_64 AppImage on every push/PR to `linux-port`,
-smoke-tests bundled Tcl/Tk, and uploads the result as a short-lived workflow
-artifact. A second job launches the same artifact under a virtual display on
-Ubuntu 22.04/24.04, Debian 12/13, Fedora 43/44, and Arch Linux. These are
-startup smoke tests, not a guarantee for every graphics stack or every
-distribution release. Musl/Alpine and ARM builds remain separate targets.
+GitHub Actions builds native x86_64 and aarch64 AppImages on pushes and
+pull requests to `linux-port`. It smoke-tests each build and launches the
+x86_64 file under virtual displays on Ubuntu 22.04/24.04, Debian 12/13,
+Fedora 43/44, and Arch Linux. The aarch64 file is additionally tested on
+Ubuntu 22.04/24.04, Debian 12/13, and Fedora 43/44. These are startup smoke
+tests, not a guarantee for every graphics stack or every distribution
+release.
+
+The Actions artifacts are temporary CI downloads. To publish permanent public
+downloads, push a version tag matching `linux-v*` (for example,
+`linux-v0.1.0`). The `.github/workflows/release-linux-appimage.yml`
+workflow builds and smoke-tests both architectures, then creates a GitHub
+Release containing both AppImages and a `SHA256SUMS` checksum file. No
+versioned release is published until such a tag is pushed.
+
+The current targets are 64-bit glibc-based desktop Linux distributions.
+Musl-based systems such as Alpine, 32-bit ARM, and other CPU architectures
+remain outside this release target and need their own packaging and tests.
 
 ## Structural Analysis
 
