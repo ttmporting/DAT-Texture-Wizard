@@ -32,7 +32,6 @@ from dtw_gamecube import GameCubeFormatError, GameCubeIso, ReplacementError, Fst
 class DatTextureWizardPreview:
     def _apply_application_identity(self) -> None:
         """Give desktop shells a stable WM_CLASS and use the original DTW icon."""
-        self.root.tk.call("wm", "class", self.root._w, "DATTextureWizard")
         self.root.title("DAT Texture Wizard")
 
         candidates: list[Path] = []
@@ -1561,7 +1560,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.appimage_smoke_test:
         # Used by the AppImage CI job under Xvfb to verify bundled Tcl/Tk loads.
-        root = tk.Tk()
+        root = tk.Tk(className="DATTextureWizard")
         root.withdraw()
         root.update_idletasks()
         tcl_version = root.tk.call("info", "patchlevel")
@@ -1569,7 +1568,7 @@ def main(argv: list[str] | None = None) -> int:
         root.destroy()
         print("AppImage GUI smoke test passed (Tcl {}, Tk {}).".format(tcl_version, tk_version))
         return 0
-    root = tk.Tk()
+    root = tk.Tk(className="DATTextureWizard")
     DatTextureWizardPreview(root, args.disc_or_dat)
     root.mainloop()
     return 0
