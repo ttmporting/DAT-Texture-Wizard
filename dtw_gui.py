@@ -30,9 +30,31 @@ from dtw_gamecube import GameCubeFormatError, GameCubeIso, ReplacementError, Fst
 
 
 class DatTextureWizardPreview:
+    def _apply_application_identity(self) -> None:
+        """Give desktop shells a stable WM_CLASS and use the original DTW icon."""
+        self.root.wm_class("DATTextureWizard", "DATTextureWizard")
+        self.root.title("DAT Texture Wizard")
+
+        candidates: list[Path] = []
+        appdir = os.environ.get("APPDIR")
+        if appdir:
+            candidates.append(Path(appdir) / "DATTextureWizard.png")
+        candidates.append(Path(__file__).resolve().parent / "imgs" / "appIcon.png")
+
+        for candidate in candidates:
+            if not candidate.is_file():
+                continue
+            try:
+                self._application_icon = tk.PhotoImage(file=str(candidate))
+                self.root.iconphoto(True, self._application_icon)
+                return
+            except (OSError, tk.TclError):
+                continue
+
     def __init__(self, root: tk.Tk, initial_file: str | None = None):
         self.root = root
         install_editable_file_dialog_paths(root)
+        self._apply_application_identity()
         self.iso: GameCubeIso | None = None
         self.dat_model: DatTreeModel | None = None
         self.texture_scan_report: TextureScanReport | None = None
@@ -72,7 +94,6 @@ class DatTextureWizardPreview:
         self.search_hits: list[int] = []
         self.search_index = -1
 
-        self.root.title("DAT Texture Wizard — Linux Preview")
         self.root.geometry("1380x820")
         self.root.minsize(1020, 640)
         self._build_menu()
