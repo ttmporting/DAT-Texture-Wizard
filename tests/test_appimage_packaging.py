@@ -41,7 +41,7 @@ class NativePackagingMetadataTests(unittest.TestCase):
 
     def test_gui_sets_matching_window_class_and_uses_bundled_icon(self):
         gui = (ROOT / "dtw_gui.py").read_text(encoding="utf-8")
-        self.assertIn('self.root.wm_class("DATTextureWizard", "DATTextureWizard")', gui)
+        self.assertIn('self.root.tk.call("wm", "class", self.root._w, "DATTextureWizard")', gui)
         self.assertIn('Path(appdir) / "DATTextureWizard.png"', gui)
         self.assertIn('self.root.iconphoto(True, self._application_icon)', gui)
 
