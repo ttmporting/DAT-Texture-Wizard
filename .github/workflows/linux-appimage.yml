@@ -101,6 +101,7 @@ jobs:
         run: ${{ matrix.install }}
 
       - name: Smoke-test GUI and bundled Tcl/Tk
+        shell: bash
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
