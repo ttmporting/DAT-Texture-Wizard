@@ -28,15 +28,15 @@ class NativePackagingMetadataTests(unittest.TestCase):
         icon = ROOT / "imgs" / "appIcon.png"
         self.assertTrue(icon.is_file())
         payload = icon.read_bytes()
-        self.assertTrue(payload.startswith(b"\\x89PNG\\r\\n\\x1a\\n"))
+        self.assertTrue(payload.startswith(b"\\x89PNG\\r\n\\x1a\n"))
         self.assertEqual(int.from_bytes(payload[16:20], "big"), 48)
         self.assertEqual(int.from_bytes(payload[20:24], "big"), 48)
 
     def test_desktop_entry_matches_window_class_and_icon_name(self):
         desktop = (ROOT / "packaging" / "DATTextureWizard.desktop").read_text(encoding="utf-8")
-        self.assertIn("Icon=DATTextureWizard\\n", desktop)
-        self.assertIn("StartupWMClass=DATTextureWizard\\n", desktop)
-        self.assertIn("Categories=Graphics;\\n", desktop)
+        self.assertIn("Icon=DATTextureWizard\n", desktop)
+        self.assertIn("StartupWMClass=DATTextureWizard\n", desktop)
+        self.assertIn("Categories=Graphics;\n", desktop)
         self.assertNotIn("Categories=Graphics;Utility;Game;", desktop)
 
     def test_gui_sets_matching_window_class_and_uses_bundled_icon(self):
