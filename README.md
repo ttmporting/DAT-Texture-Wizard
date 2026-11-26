@@ -1,4 +1,48 @@
 # DAT Texture Wizard (DTW)
+
+## Native Linux beta — x86_64 and ARM64
+
+This fork adds a native Linux application based on the DAT Texture Wizard
+v6.1.4 project. The first public Linux build is a **beta**: it is useful for
+Melee/GameCube disc browsing and texture work, but it is not yet a complete
+Linux port of every feature in the original Windows application.
+
+**Downloads:** [DAT Texture Wizard Linux releases](https://github.com/ttmporting/DAT-Texture-Wizard/releases)
+
+Choose the AppImage that matches the computer's processor:
+
+- **x86_64** — Intel and AMD 64-bit PCs (the usual choice for desktop/laptop Linux).
+- **aarch64** — 64-bit ARM Linux devices.
+
+After downloading, make the AppImage executable and launch it:
+
+```bash
+chmod +x DATTextureWizard-x86_64.AppImage
+./DATTextureWizard-x86_64.AppImage
+```
+
+The Linux beta includes a Melee-oriented GameCube file tree, character and
+stage descriptions, file export and staged replacement, verified rebuilding
+to a **new** ISO/GCM image, DAT structural browsing, GX texture PNG previews,
+and fixed-dimension PNG texture imports into new DAT copies.
+
+The AppImage bundles its Python and Tcl/Tk runtime and has passed startup
+smoke-tests on a selection of mainstream glibc distributions. It is not a
+universal binary for every Linux environment: Alpine/musl, 32-bit systems,
+other CPU architectures, and every desktop/graphics stack are not covered.
+
+**Beta limitations:** general DAT structure editing/rebuilding is not yet
+available; ISO rebuilding replaces existing FST-listed files but does not add,
+remove, or rename entries; texture imports require matching dimensions and do
+not support mipmapped textures. Keep backups of your original files and
+always save rebuilt discs to a new output path.
+
+See the [Linux GUI guide](README.GUI.LINUX.md) for installation, supported
+workflows, test coverage, and detailed limitations.
+
+---
+
+## Original project
 This program allows for disc (ISO/GCM) management of GameCube games, as well as texture exporting and importing, particularly for Super Smash Bros. Melee and 20XX HP. The internal file structure of HAL DAT files (such as stage/menu/character files) can also be deeply analyzed and edited.
 
 Disc management features include adding/replacing/deleting files and/or folders (including replacing files that are larger than the original), building a disc from root files, editing the game names (short/long titles, descriptions, etc.), replacing the disc banner, and more.

@@ -1,12 +1,13 @@
-# Native Linux GUI preview
+# DAT Texture Wizard — Native Linux beta
 
-This is an early native Tk GUI milestone for the `linux-port` branch. The
-primary workspace is the **Melee File Tree**, followed by Structural Analysis
-and the visual **DAT Texture Tree** PNG gallery. The preview supports GameCube
-disc browsing, file export, staged file replacement, a verified full ISO
-rebuild to a new output image, GX PNG previews, and fixed-size PNG-to-GX
-texture replacement into a new DAT copy. General DAT structure editing and
-DAT rebuilding are still in development.
+This is the first public beta of the native Tk Linux application on the
+`linux-port` branch. Its primary workspace is the **Melee File Tree**, followed
+by Structural Analysis and the visual **DAT Texture Tree** PNG gallery. It
+supports GameCube disc browsing, file export, staged file replacement,
+verified ISO rebuilding to a new output image, GX PNG previews, and
+fixed-size PNG-to-GX texture replacement into a new DAT copy. General DAT
+structure editing and complete parity with the original Windows application
+are still in development.
 
 ## Run on Nobara 43
 
@@ -111,9 +112,10 @@ The implementation is conservative:
 - Replacing the boot DOL itself is not supported.
 - This rebuild preserves existing FST entries and their directory/string table
   content. It does not add/remove/rename files or create directories.
-- The actual TM-CE image has not yet been exercised end-to-end in the GUI. The
-  FST reader was written to recover paths from directory preorder ranges and
-  to report parent-index inconsistencies encountered in that image.
+- The TM-CE-based Melee image has been manually exercised through the
+  custom-skin replacement workflow, including rebuilding to a new ISO and
+  validating the result in Dolphin. This is a focused end-to-end test, not
+  automated coverage of every game image or mod.
 
 ## DAT Texture Tree PNG previews
 
