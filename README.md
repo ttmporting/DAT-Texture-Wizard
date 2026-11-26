@@ -26,54 +26,13 @@ You can find the official thread here: [DAT Texture Wizard on SmashBoards.com](h
 
 The structure of this program's code is largely a functional style (i.e. built mostly using just strait functions). Certainly some parts would be better suited as objects, with classes and their own personal methods. And I know there are some things that could be done more efficiently. A strong factor that led to some matters such as these is the fact that this is a really old project, built when I was first learning Python. :P But going forward I'll be occasionally refactoring parts of this program, and rewriting key components of it as I incorporate them into future projects. Let me know if there's anything you'd like to see broken out into a separate project, like HSD DAT file/structure objects, the texture codec, etc.
 
-## Installation & Setup
+## Get the app
 
-If all you want to do is run the program, there is no installation; just download and unzip one of the [latest release builds](https://github.com/DRGN-DRC/DAT-Texture-Wizard/releases). The directions below are for running or building from the source code.
-
-### Windows
-In order to run or compile this program, you'll need to install Python 2 and a few modules. Any version of python between 2.7.12 up to the latest 2.7 should work.
-
-After installing Python, the following Python modules must be installed:
-
-    - psutil
-    - Pillow      (internally referred to as PIL)
-    - cx-Freeze   (if you want to compile)
-
-- Method 1:
-The easiest way to install these is with pip, which comes with Python by default. It's found in C:\Python27\Scripts; which you'll need to navigate to if you didn't install Python to your PATH variable (which is an option during installation). Once you're ready to run pip commands, you can install the above modules by running 'pip install [moduleName]' for each one. All other dependencies are included in the repo. However, the newest versions of pip (v21+) no longer support Python 2. If that's what you're running, see method 2.
-
-cx-Freeze will need to be less than version 6 for compatibility with Python 2.7. I recommend v5.1.1, as that's what I've been using. To install this specific version, you may be able to use "pip install cx-Freeze==5.1.1".
-
-- Method 2:
-Since Python 2 is now end-of-life, the latest versions of pip (v21+) will no longer download modules for it. In that case, here are direct downloads:
-
-    - psutil    : https://pypi.org/project/psutil/5.8.0/#files
-    - Pillow    : https://pypi.org/project/Pillow/6.2.2/#files
-    - cx-Freeze : https://pypi.org/project/cx-Freeze/5.1.1/#files
-    
-You can try later versions of psutil or Pillow (but not cx-Freeze), if you'd like, but I've tested the versions above. Pip should still be able to install these (just not download them, for some reason). So once downloaded, you can install these .whl files by navigating to the folder that contains them and running 'pip install [filename.whl]' (assuming pip is in your PATH variable; if not, use its full file path).
-
-### Other OSes
-Running the program uncompiled on other platforms hasn't been tested yet. However, once compiled, DTW can be run on MacOS, Android, Ubuntu, and more using Wine. For platform and version compatibility of Wine, check [Wine's download page](https://wiki.winehq.org/Download). Homebrew can be used as a convenient package manager to install as Wine. Of course, running DTW within a VM (Virtual Machine) is also a viable option if this doesn't work for you.
-
-The following directions are for MacOS, however I haven't tested them myself, so please let me know if you find any mistakes or have any improvements.
-
-   1. Install Homebrew: open terminal and enter `/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"`
-   2. Enter `brew doctor` to make sure Homebrew is running well
-   3. Install wine by entering `brew install wine`
-   4. Install winetricks by entering `brew install winetricks`
-   5. Enter 'winetricks -q dotnet452 corefonts' to install .net frameworks 4.5.2 for Wine
-   6. Navigate to your DTW folder (you can use `cd` to enter a folder, and `ls` to see what folders you can enter)
-   7. Run `wine DAT\ Texture\ Wizard.exe` (spaces in folder and file names need to be escaped with backslashes)
-
-You can find a larger explanation and guide for installing Homebrew and Wine [here](https://www.davidbaumgold.com/tutorials/wine-mac/) (also includes making a dock icon), or try Google for more.
-
-## Building (Windows)
-This program uses cx-Freeze to compile, using the setup.py file. To compile the program, you just need to run the "Build Executable.bat" batch script, which is a simple wrapper for setup.py.
-
-The batch script will ask if you'd like to preserve console display for the finished executable; if enabled (preserved), a console window will be opened alongside the GUI when running the program, which will contain simple messages for some features, as well as error messages. If disabled, errors will still be logged in a generated "Error log.txt" file in the program's root. Most users probably won't find a lot of use in the console, but it's there anyway just in case.
-
-Once compiled, the program will be found in the 'build' folder, and will be renamed to 'DAT Texture Wizard - v[version] ([x86|x64])'.
+- **AppImage:** Download the latest Linux AppImage from the
+  [GitHub Releases page](https://github.com/ttmporting/DAT-Texture-Wizard/releases).
+- **Source code:** Browse the [native Linux source on the `linux-port` branch](https://github.com/ttmporting/DAT-Texture-Wizard/tree/linux-port).
+  For source-based setup and development details, see the
+  [Linux GUI guide](https://github.com/ttmporting/DAT-Texture-Wizard/blob/linux-port/README.GUI.LINUX.md).
 
 ## Credits, Copyright, and Licenses
 * **png.py**  ( [Website](https://pypng.readthedocs.io/en/latest/) | [GitHub](https://github.com/drj11/pypng/) )    `- PNG codec used within the TPL codec`
