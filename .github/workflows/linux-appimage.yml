@@ -57,7 +57,7 @@ jobs:
           name: DATTextureWizard-AppImage-x86_64
           path: dist/DATTextureWizard-*.AppImage
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
   test-mainstream-distros:
     name: Smoke-test on ${{ matrix.distro }}
@@ -156,7 +156,7 @@ jobs:
           name: DATTextureWizard-AppImage-aarch64
           path: dist/DATTextureWizard-*.AppImage
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
   test-aarch64-distros:
     name: Smoke-test aarch64 on ${{ matrix.distro }}
