@@ -1,11 +1,14 @@
 # DAT Texture Wizard (DTW)
 
-## Native Linux beta is available
+## About this Linux port
 
-This fork now provides a **native Linux beta** on the
-[`linux-port` branch](https://github.com/ttmporting/DAT-Texture-Wizard/tree/linux-port).
-Download the x86_64 (Intel/AMD) or aarch64 (ARM64) AppImage from the
-[DAT Texture Wizard Linux releases](https://github.com/ttmporting/DAT-Texture-Wizard/releases).
+Hey! This project aims to let DAT Texture Wizard run natively on Linux, without
+having to use Bottles or Wine. AI tools were used to assist with translating
+and adapting parts of the original Windows version and with the compatibility
+work needed to make this native Linux version possible.
+
+Head to the downloads page **[Here](https://github.com/ttmporting/DAT-Texture-Wizard/releases)**
+to download the AppImage.
 
 This is a beta of the Linux GUI port, not a claim that every feature of the
 original Windows application has been ported. Review the
