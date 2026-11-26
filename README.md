@@ -1,4 +1,20 @@
 # DAT Texture Wizard (DTW)
+
+## Native Linux beta is available
+
+This fork now provides a **native Linux beta** on the
+[`linux-port` branch](https://github.com/ttmporting/DAT-Texture-Wizard/tree/linux-port).
+Download the x86_64 (Intel/AMD) or aarch64 (ARM64) AppImage from the
+[DAT Texture Wizard Linux releases](https://github.com/ttmporting/DAT-Texture-Wizard/releases).
+
+This is a beta of the Linux GUI port, not a claim that every feature of the
+original Windows application has been ported. Review the
+[Linux GUI guide](https://github.com/ttmporting/DAT-Texture-Wizard/blob/linux-port/README.GUI.LINUX.md)
+for supported workflows, limitations, and launch instructions. Always keep
+backups and save rebuilt disc images to a new file.
+
+---
+
 This program allows for disc (ISO/GCM) management of GameCube games, as well as texture exporting and importing, particularly for Super Smash Bros. Melee and 20XX HP. The internal file structure of HAL DAT files (such as stage/menu/character files) can also be deeply analyzed and edited.
 
 Disc management features include adding/replacing/deleting files and/or folders (including replacing files that are larger than the original), building a disc from root files, editing the game names (short/long titles, descriptions, etc.), replacing the disc banner, and more.
