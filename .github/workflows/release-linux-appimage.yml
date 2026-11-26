@@ -95,6 +95,7 @@ jobs:
             RELEASE_ARGS+=(--prerelease)
           fi
           gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
             dist/DATTextureWizard-*.AppImage \
             dist/SHA256SUMS \
             --title "DAT Texture Wizard ${GITHUB_REF_NAME#linux-}" \
